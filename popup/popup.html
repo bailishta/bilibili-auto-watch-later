@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 头部 -->
+    <div class="header">
+      <span class="title">稍后观看助手</span>
+      <span id="status-badge" class="badge">加载中</span>
+    </div>
+
+    <!-- 统计区 -->
+    <div class="stats-row">
+      <div class="stat-item">
+        <span class="stat-val" id="stat-tracking">--</span>
+        <span class="stat-label">追踪UP主</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val" id="stat-new">--</span>
+        <span class="stat-label">本次新发现</span>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <button class="btn btn-primary" id="btn-check">立即检查</button>
+    <div class="action-row">
+      <button class="btn btn-link" id="btn-open-wl">打开稍后观看 →</button>
+      <button class="btn btn-link" id="btn-reimport">重新导入关注</button>
+    </div>
+
+    <!-- 新视频时间窗口 -->
+    <div class="setting-row">
+      <span class="setting-label">新视频判定</span>
+      <select id="select-window" class="setting-select">
+        <option value="12">12小时内</option>
+        <option value="24" selected>1天内</option>
+        <option value="48">2天内</option>
+        <option value="72">3天内</option>
+        <option value="168">7天内</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">自动检查间隔</span>
+      <select id="select-interval" class="setting-select">
+        <option value="1" selected>1天</option>
+        <option value="2">2天</option>
+        <option value="3">3天</option>
+        <option value="7">7天</option>
+      </select>
+    </div>
+
+    <!-- 检查进度 -->
+    <div id="check-progress" class="progress-bar" style="display:none">
+      <div class="progress-fill" id="progress-fill"></div>
+      <div class="progress-row">
+        <span id="progress-label">检查中...</span>
+        <button class="btn btn-cancel" id="btn-cancel-check">取消</button>
+      </div>
+    </div>
+
+    <!-- 追踪名单 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">追踪名单</span>
+        <button class="btn btn-sm" id="btn-add">+ 添加UP主</button>
+      </div>
+      <div id="tracking-list" class="scroll-list">
+        <div class="empty-hint">暂无追踪UP主</div>
+      </div>
+    </div>
+
+    <!-- 调试日志 -->
+    <div id="debug-section" class="debug-section" style="display:none">
+      <div class="debug-header" id="debug-toggle">📋 调试日志 ▼</div>
+      <div id="debug-content" class="debug-content"></div>
+    </div>
+
+    <!-- 底部 -->
+    <div class="footer">
+      <span id="last-check">上次检查：--</span>
+    </div>
+
+    <!-- 添加UP主弹窗 -->
+    <div id="add-modal" class="modal" style="display:none">
+      <div class="modal-content">
+        <h3>添加UP主到追踪名单</h3>
+        <input type="text" id="add-input" placeholder="输入UP主的UID或B站主页链接">
+        <div id="add-error" class="error-msg" style="display:none"></div>
+        <div class="modal-btns">
+          <button class="btn btn-secondary" id="btn-cancel">取消</button>
+          <button class="btn btn-primary" id="btn-confirm-add">确认添加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

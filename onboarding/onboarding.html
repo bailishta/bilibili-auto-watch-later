@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B站稍后观看助手 - 欢迎</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #fb7299 0%, #ff7da6 50%, #ff9a9e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 40px 36px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      background: #fb7299;
+      border-radius: 18px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      color: #fff;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      color: #18191c;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #9499a0;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+    .features {
+      text-align: left;
+      background: #f6f7f8;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+    .features li {
+      font-size: 13px;
+      color: #61666d;
+      margin-bottom: 8px;
+      padding-left: 16px;
+      position: relative;
+      list-style: none;
+    }
+    .features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #fb7299;
+      font-weight: bold;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #fb7299;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #e56080; }
+    .btn-primary:disabled { background: #f0a0b8; cursor: not-allowed; }
+    .btn-secondary {
+      background: #f6f7f8;
+      color: #61666d;
+    }
+    .btn-secondary:hover { background: #e8e9eb; }
+    .progress {
+      display: none;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #9499a0;
+    }
+    .progress.show { display: block; }
+    .result {
+      display: none;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .result.show { display: block; }
+    .result.success { background: #e6f7e6; color: #1a8c1a; }
+    .result.warn { background: #fff3e0; color: #e67e00; }
+    .skip-link {
+      color: #9499a0;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">▶</div>
+    <h1>B站稍后观看助手</h1>
+    <p class="subtitle">自动帮你把关注的UP主新视频加入「稍后观看」，不再错过任何更新。</p>
+
+    <ul class="features">
+      <li>自动检测追踪名单中UP主的新视频</li>
+      <li>发现新视频后自动添加到稍后观看</li>
+      <li>可自行增删追踪的UP主名单</li>
+    </ul>
+
+    <button class="btn btn-primary" id="import-btn">从B站关注列表导入</button>
+    <button class="btn btn-secondary" id="skip-btn">稍后再说，手动添加</button>
+
+    <div class="progress" id="progress">
+      正在导入... <span id="progress-text"></span>
+    </div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <script src="onboarding.js" type="module"></script>
+</body>
+</html>

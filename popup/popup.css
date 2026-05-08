@@ -1,0 +1,331 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 340px;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  color: #18191c;
+  background: #fff;
+}
+
+.container {
+  padding: 14px;
+}
+
+/* 头部 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.badge {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: #e8e9eb;
+  color: #9499a0;
+}
+.badge.logged-in {
+  background: #e6f7e6;
+  color: #1a8c1a;
+}
+.badge.not-logged-in {
+  background: #fff0f0;
+  color: #cc0000;
+}
+
+/* 统计 */
+.stats-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  background: #f6f7f8;
+  border-radius: 8px;
+}
+.stat-val {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #00a1d6;
+}
+.stat-label {
+  font-size: 10px;
+  color: #9499a0;
+}
+
+/* 按钮 */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.8; }
+.btn-primary { background: #fb7299; color: #fff; }
+.btn-primary:hover { background: #e56080; }
+.btn-primary:disabled { background: #f0a0b8; cursor: not-allowed; }
+.btn-secondary { background: #f6f7f8; color: #61666d; }
+.btn-secondary:hover { background: #e8e9eb; }
+.btn-link {
+  background: none;
+  color: #61666d;
+  font-size: 12px;
+  padding: 4px 0;
+  width: auto;
+}
+.btn-link:hover { color: #00a1d6; }
+.btn-sm {
+  width: auto;
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 11px;
+  background: #e8f4fa;
+  color: #00a1d6;
+  border-radius: 12px;
+}
+.btn-sm:hover { background: #cce5f3; }
+
+.action-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* 设置行 */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #f6f7f8;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.setting-label {
+  font-size: 12px;
+  color: #61666d;
+}
+.setting-select {
+  padding: 4px 8px;
+  border: 1px solid #e8e9eb;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #18191c;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+.setting-select:focus { border-color: #fb7299; }
+
+/* 进度条 */
+.progress-bar {
+  margin-bottom: 10px;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 11px;
+  color: #9499a0;
+}
+.progress-fill {
+  height: 3px;
+  background: #fb7299;
+  border-radius: 2px;
+  margin-bottom: 4px;
+  transition: width 0.3s;
+}
+.progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.btn-cancel {
+  width: auto !important;
+  display: inline-block !important;
+  padding: 2px 8px !important;
+  font-size: 10px !important;
+  background: #f6f7f8 !important;
+  color: #9499a0 !important;
+  border-radius: 8px !important;
+  margin: 0 !important;
+}
+.btn-cancel:hover { background: #fff0f0 !important; color: #cc0000 !important; }
+
+/* 分区 */
+.section {
+  margin-bottom: 10px;
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9499a0;
+}
+
+/* 滚动列表 */
+.scroll-list {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 4px;
+}
+.scroll-list::-webkit-scrollbar { width: 4px; }
+.scroll-list::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 2px;
+}
+
+.empty-hint {
+  padding: 16px;
+  text-align: center;
+  color: #c0c4cc;
+  font-size: 12px;
+}
+
+/* 列表项 */
+.list-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  gap: 8px;
+}
+.list-item:hover { background: #f6f7f8; }
+.list-item .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: #e8e9eb;
+  flex-shrink: 0;
+}
+.list-item .info {
+  flex: 1;
+  min-width: 0;
+}
+.list-item .name {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list-item .meta {
+  font-size: 10px;
+  color: #9499a0;
+}
+.list-item .delete-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  background: #f6f7f8;
+  color: #9499a0;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.list-item .delete-btn:hover {
+  background: #fff0f0;
+  color: #cc0000;
+}
+
+/* 底部 */
+.footer {
+  font-size: 11px;
+  color: #c0c4cc;
+  text-align: center;
+  padding-top: 6px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 弹窗 */
+.modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 88%;
+}
+.modal-content h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.modal-content input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e8e9eb;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 6px;
+}
+.modal-content input:focus { border-color: #fb7299; }
+.modal-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.modal-btns .btn { flex: 1; }
+.error-msg {
+  color: #cc0000;
+  font-size: 11px;
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 调试日志 */
+.debug-section {
+  margin-bottom: 8px;
+  border: 1px solid #e8e9eb;
+  border-radius: 6px;
+}
+.debug-header {
+  font-size: 11px;
+  color: #9499a0;
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.debug-content {
+  padding: 4px 8px 8px;
+  font-size: 10px;
+  color: #61666d;
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: monospace;
+  line-height: 1.5;
+  border-top: 1px solid #f0f0f0;
+}
+.debug-content .log-line { padding: 1px 0; }
+.debug-content .log-error { color: #cc0000; }
+.debug-content .log-success { color: #1a8c1a; }
