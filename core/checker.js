@@ -2,8 +2,9 @@ import * as storage from './storage.js';
 import * as api from './api.js';
 
 const DELETED_NAMES = ['已注销用户', '账号已注销', '已注销'];
-const REQUEST_DELAY = 800; // ms，每批UP主之间的间隔
-const CONCURRENCY = 3; // 并行处理的UP主数量
+const REQUEST_DELAY = 200; // ms，每批UP主之间的间隔
+const CONCURRENCY = 6; // 并行处理的UP主数量
+const BATCH_STAGGER = 30; // ms，批次内错开启动的间隔
 
 function getNewVideoWindowMs(hours) {
   return (hours || 24) * 60 * 60 * 1000;
@@ -54,8 +55,9 @@ export async function checkForNewVideos(sendProgress) {
   for (let i = 0; i < mids.length; i += CONCURRENCY) {
     const batch = mids.slice(i, i + CONCURRENCY);
 
+    // 阶段1：并行拉取所有UP主的视频列表
     const batchPromises = batch.map(async (mid, bi) => {
-      await sleep(bi * 200); // 批次内错开启动，避免同时命中B站
+      await sleep(bi * BATCH_STAGGER);
 
       const upName = trackingList[mid].name;
       try {
@@ -66,45 +68,55 @@ export async function checkForNewVideos(sendProgress) {
         if (result.error) {
           report.skipped.push({ mid, name: upName, reason: result.error });
           report.errors++;
-          return;
+          return { mid, upName, aidsToAdd: [], newVids: [] };
         }
 
-        const videos = result.videos || [];
         const newVids = [];
         const aidsToAdd = [];
-
-        for (const v of videos) {
+        for (const v of (result.videos || [])) {
           if (v.pubdate < cutOff) continue;
-          if (await storage.isVideoTracked(v.bvid)) continue;
           if (watchedBvids.has(v.bvid)) continue;
+          if (await storage.isVideoTracked(v.bvid)) continue;
           aidsToAdd.push(v.aid);
           newVids.push(v);
         }
-
-        if (aidsToAdd.length > 0) {
-          const results = await api.addToWatchLaterBatch(aidsToAdd);
-          for (let j = 0; j < aidsToAdd.length; j++) {
-            const r = results[j];
-            if (r && r.code === 0) {
-              const v = newVids[j];
-              await storage.markVideoTracked(v.bvid, {
-                title: v.title,
-                mid: v.mid || mid,
-                author: v.author || upName,
-                pubdate: v.pubdate
-              });
-              report.newVideos.push({ bvid: v.bvid, title: v.title, author: v.author || upName });
-              report.added++;
-            }
-          }
-        }
+        return { mid, upName, aidsToAdd, newVids };
       } catch {
         report.skipped.push({ mid, name: upName, reason: 'exception' });
         report.errors++;
+        return { mid, upName, aidsToAdd: [], newVids: [] };
       }
     });
 
-    await Promise.all(batchPromises);
+    const batchResults = await Promise.all(batchPromises);
+
+    // 阶段2：合并整批待添加视频，一次往返完成
+    const allAids = [];
+    const allNewVids = [];
+    for (const r of batchResults) {
+      if (r.aidsToAdd.length > 0) {
+        allAids.push(...r.aidsToAdd);
+        allNewVids.push(...r.newVids);
+      }
+    }
+
+    if (allAids.length > 0) {
+      const results = await api.addToWatchLaterBatch(allAids);
+      for (let j = 0; j < allAids.length; j++) {
+        const r = results[j];
+        if (r && r.code === 0) {
+          const v = allNewVids[j];
+          await storage.markVideoTracked(v.bvid, {
+            title: v.title,
+            mid: v.mid || '',
+            author: v.author || '',
+            pubdate: v.pubdate
+          });
+          report.newVideos.push({ bvid: v.bvid, title: v.title, author: v.author || '' });
+          report.added++;
+        }
+      }
+    }
 
     // 每批完成后检查是否取消
     const { _checkCancelled } = await chrome.storage.local.get('_checkCancelled');
