@@ -10,14 +10,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.tabs.create({ url: 'onboarding/onboarding.html' });
   }
 
-  // 确保 alarm 存在
-  const alarm = await chrome.alarms.get('check-watch-later');
-  if (!alarm) {
-    const settings = await storage.getSettings();
-    chrome.alarms.create('check-watch-later', {
-      periodInMinutes: settings.checkIntervalMinutes || 30
-    });
-  }
+  // 确保 alarm 存在（按用户设置的星期和时间排程）
+  const settings = await storage.getSettings();
+  await scheduleNextCheck(settings);
 });
 
 // ── 顶层：alarm 触发 ──
@@ -32,6 +27,40 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   }
 });
+
+// ── 排程工具 ──
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function calculateNextCheckTime(checkDays, checkTime) {
+  if (!checkDays || checkDays.length === 0) return null;
+
+  const [h, m] = (checkTime || '18:00').split(':').map(Number);
+  const now = new Date();
+  const today = now.getDay(); // 0=周日
+
+  // 从今天开始往后找7天，找到第一个匹配的日期
+  for (let offset = 0; offset < 7; offset++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + offset);
+    d.setHours(h, m, 0, 0);
+    if (d > now && checkDays.includes(d.getDay())) {
+      return d.getTime();
+    }
+  }
+  return null;
+}
+
+async function scheduleNextCheck(settings) {
+  const nextTime = calculateNextCheckTime(settings.checkDays, settings.checkTime);
+  await chrome.alarms.clear('check-watch-later');
+  if (nextTime) {
+    chrome.alarms.create('check-watch-later', {
+      when: nextTime,
+      periodInMinutes: Math.round(WEEK_MS / 60000)
+    });
+  }
+}
 
 // ── 顶层：消息处理 ──
 
@@ -85,12 +114,10 @@ async function handleMessage(msg) {
 
     case 'saveSettings': {
       await storage.saveSettings(msg.settings);
-      // 如果修改了检查间隔，同步更新 alarm
-      if (msg.settings.checkIntervalMinutes) {
-        await chrome.alarms.clear('check-watch-later');
-        chrome.alarms.create('check-watch-later', {
-          periodInMinutes: msg.settings.checkIntervalMinutes
-        });
+      // 如果修改了排程设置，重新计算下次检查时间
+      if (msg.settings.checkDays || msg.settings.checkTime) {
+        const settings = await storage.getSettings();
+        await scheduleNextCheck(settings);
       }
       return { success: true };
     }

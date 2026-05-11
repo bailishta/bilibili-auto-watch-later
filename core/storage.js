@@ -95,7 +95,7 @@ export async function saveStats(stats) {
 
 export async function getSettings() {
   const result = await chrome.storage.local.get(KEYS.SETTINGS);
-  return result[KEYS.SETTINGS] || { checkIntervalMinutes: 1440, importDone: false };
+  return result[KEYS.SETTINGS] || { checkDays: [0, 6], checkTime: '18:00', importDone: false };
 }
 
 export async function saveSettings(settings) {

@@ -43,14 +43,21 @@
         <option value="168">7天内</option>
       </select>
     </div>
-    <div class="setting-row">
-      <span class="setting-label">自动检查间隔</span>
-      <select id="select-interval" class="setting-select">
-        <option value="1" selected>1天</option>
-        <option value="2">2天</option>
-        <option value="3">3天</option>
-        <option value="7">7天</option>
-      </select>
+    <div class="setting-row-vert">
+      <span class="setting-label">自动检查日</span>
+      <div class="weekday-group" id="check-days">
+        <label class="weekday-label"><input type="checkbox" value="0" checked>周日</label>
+        <label class="weekday-label"><input type="checkbox" value="1">周一</label>
+        <label class="weekday-label"><input type="checkbox" value="2">周二</label>
+        <label class="weekday-label"><input type="checkbox" value="3">周三</label>
+        <label class="weekday-label"><input type="checkbox" value="4">周四</label>
+        <label class="weekday-label"><input type="checkbox" value="5">周五</label>
+        <label class="weekday-label"><input type="checkbox" value="6" checked>周六</label>
+      </div>
+      <div class="time-row">
+        <span class="setting-label">检查时间</span>
+        <input type="time" id="check-time" class="time-input" value="18:00">
+      </div>
     </div>
 
     <!-- 检查进度 -->
@@ -68,6 +75,7 @@
         <span class="section-title">追踪名单</span>
         <button class="btn btn-sm" id="btn-add">+ 添加UP主</button>
       </div>
+      <input type="text" class="search-input" id="search-tracking" placeholder="搜索UP主名称或UID...">
       <div id="tracking-list" class="scroll-list">
         <div class="empty-hint">暂无追踪UP主</div>
       </div>

@@ -18,7 +18,11 @@ const $btnConfirmAdd = document.getElementById('btn-confirm-add');
 const $btnCancel = document.getElementById('btn-cancel');
 const $btnCancelCheck = document.getElementById('btn-cancel-check');
 const $selectWindow = document.getElementById('select-window');
-const $selectInterval = document.getElementById('select-interval');
+const $checkDays = document.getElementById('check-days');
+const $checkTime = document.getElementById('check-time');
+const $searchTracking = document.getElementById('search-tracking');
+
+let _trackingListCache = {};
 
 let _progressInterval = null;
 let _stopProgressTimeout = null;
@@ -30,8 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (settings?.newVideoWindowHours) {
     $selectWindow.value = String(settings.newVideoWindowHours);
   }
-  if (settings?.checkIntervalMinutes) {
-    $selectInterval.value = String(Math.round(settings.checkIntervalMinutes / 1440));
+  // 星期复选框
+  const checkDays = settings?.checkDays || [0, 6];
+  $checkDays.querySelectorAll('input').forEach(cb => {
+    cb.checked = checkDays.includes(parseInt(cb.value));
+  });
+  if (settings?.checkTime) {
+    $checkTime.value = settings.checkTime;
   }
 
   await refreshStatus();
@@ -50,12 +59,23 @@ $selectWindow.addEventListener('change', async () => {
   });
 });
 
-$selectInterval.addEventListener('change', async () => {
-  await chrome.runtime.sendMessage({
-    type: 'saveSettings',
-    settings: { checkIntervalMinutes: parseInt($selectInterval.value) * 1440 }
+function getSelectedDays() {
+  const days = [];
+  $checkDays.querySelectorAll('input:checked').forEach(cb => {
+    days.push(parseInt(cb.value));
   });
-});
+  return days;
+}
+
+function saveSchedule() {
+  chrome.runtime.sendMessage({
+    type: 'saveSettings',
+    settings: { checkDays: getSelectedDays(), checkTime: $checkTime.value }
+  });
+}
+
+$checkDays.addEventListener('change', () => saveSchedule());
+$checkTime.addEventListener('change', () => saveSchedule());
 
 // ── 按钮事件 ──
 $btnCheck.addEventListener('click', async () => {
@@ -150,6 +170,11 @@ $btnCancelCheck.addEventListener('click', async () => {
   refreshStatus();
 });
 
+// 搜索过滤
+$searchTracking.addEventListener('input', () => {
+  renderTrackingList(_trackingListCache, $searchTracking.value);
+});
+
 // 点击弹窗外部关闭
 $addModal.addEventListener('click', (e) => {
   if (e.target === $addModal) $addModal.style.display = 'none';
@@ -182,13 +207,22 @@ async function refreshStatus() {
 
   // 追踪名单
   const trackingList = await chrome.runtime.sendMessage({ type: 'getTrackingList' });
-  renderTrackingList(trackingList);
+  _trackingListCache = trackingList || {};
+  renderTrackingList(_trackingListCache, $searchTracking.value);
 }
 
-function renderTrackingList(list) {
-  const mids = Object.keys(list || {});
+function renderTrackingList(list, filter) {
+  let mids = Object.keys(list || {});
+  const q = (filter || '').trim().toLowerCase();
+  if (q) {
+    mids = mids.filter(mid => {
+      const u = list[mid];
+      return mid.includes(q) || (u.name || '').toLowerCase().includes(q);
+    });
+  }
+
   if (mids.length === 0) {
-    $trackingList.innerHTML = '<div class="empty-hint">暂无追踪UP主</div>';
+    $trackingList.innerHTML = `<div class="empty-hint">${q ? '无匹配结果' : '暂无追踪UP主'}</div>`;
     return;
   }
 
