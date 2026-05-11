@@ -19,6 +19,9 @@ const $btnCancel = document.getElementById('btn-cancel');
 const $btnCancelCheck = document.getElementById('btn-cancel-check');
 const $selectWindow = document.getElementById('select-window');
 const $selectInterval = document.getElementById('select-interval');
+const $searchTracking = document.getElementById('search-tracking');
+
+let _trackingListCache = {};
 
 let _progressInterval = null;
 let _stopProgressTimeout = null;
@@ -150,6 +153,11 @@ $btnCancelCheck.addEventListener('click', async () => {
   refreshStatus();
 });
 
+// 搜索过滤
+$searchTracking.addEventListener('input', () => {
+  renderTrackingList(_trackingListCache, $searchTracking.value);
+});
+
 // 点击弹窗外部关闭
 $addModal.addEventListener('click', (e) => {
   if (e.target === $addModal) $addModal.style.display = 'none';
@@ -182,13 +190,22 @@ async function refreshStatus() {
 
   // 追踪名单
   const trackingList = await chrome.runtime.sendMessage({ type: 'getTrackingList' });
-  renderTrackingList(trackingList);
+  _trackingListCache = trackingList || {};
+  renderTrackingList(_trackingListCache, $searchTracking.value);
 }
 
-function renderTrackingList(list) {
-  const mids = Object.keys(list || {});
+function renderTrackingList(list, filter) {
+  let mids = Object.keys(list || {});
+  const q = (filter || '').trim().toLowerCase();
+  if (q) {
+    mids = mids.filter(mid => {
+      const u = list[mid];
+      return mid.includes(q) || (u.name || '').toLowerCase().includes(q);
+    });
+  }
+
   if (mids.length === 0) {
-    $trackingList.innerHTML = '<div class="empty-hint">暂无追踪UP主</div>';
+    $trackingList.innerHTML = `<div class="empty-hint">${q ? '无匹配结果' : '暂无追踪UP主'}</div>`;
     return;
   }
 
