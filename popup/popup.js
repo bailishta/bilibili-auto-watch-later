@@ -18,7 +18,8 @@ const $btnConfirmAdd = document.getElementById('btn-confirm-add');
 const $btnCancel = document.getElementById('btn-cancel');
 const $btnCancelCheck = document.getElementById('btn-cancel-check');
 const $selectWindow = document.getElementById('select-window');
-const $selectInterval = document.getElementById('select-interval');
+const $checkDays = document.getElementById('check-days');
+const $checkTime = document.getElementById('check-time');
 const $searchTracking = document.getElementById('search-tracking');
 
 let _trackingListCache = {};
@@ -33,8 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (settings?.newVideoWindowHours) {
     $selectWindow.value = String(settings.newVideoWindowHours);
   }
-  if (settings?.checkIntervalMinutes) {
-    $selectInterval.value = String(Math.round(settings.checkIntervalMinutes / 1440));
+  // 星期复选框
+  const checkDays = settings?.checkDays || [0, 6];
+  $checkDays.querySelectorAll('input').forEach(cb => {
+    cb.checked = checkDays.includes(parseInt(cb.value));
+  });
+  if (settings?.checkTime) {
+    $checkTime.value = settings.checkTime;
   }
 
   await refreshStatus();
@@ -53,12 +59,23 @@ $selectWindow.addEventListener('change', async () => {
   });
 });
 
-$selectInterval.addEventListener('change', async () => {
-  await chrome.runtime.sendMessage({
-    type: 'saveSettings',
-    settings: { checkIntervalMinutes: parseInt($selectInterval.value) * 1440 }
+function getSelectedDays() {
+  const days = [];
+  $checkDays.querySelectorAll('input:checked').forEach(cb => {
+    days.push(parseInt(cb.value));
   });
-});
+  return days;
+}
+
+function saveSchedule() {
+  chrome.runtime.sendMessage({
+    type: 'saveSettings',
+    settings: { checkDays: getSelectedDays(), checkTime: $checkTime.value }
+  });
+}
+
+$checkDays.addEventListener('change', () => saveSchedule());
+$checkTime.addEventListener('change', () => saveSchedule());
 
 // ── 按钮事件 ──
 $btnCheck.addEventListener('click', async () => {
