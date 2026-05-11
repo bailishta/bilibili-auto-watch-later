@@ -43,7 +43,7 @@ export async function checkForNewVideos(sendProgress) {
 
   let watchedBvids = new Set();
   try {
-    const history = await api.getWatchHistory(50);
+    const history = await api.getWatchHistory(200);
     watchedBvids = new Set(history);
   } catch (e) {
     console.warn('[checker] 获取观看历史失败，跳过此过滤:', e.message);

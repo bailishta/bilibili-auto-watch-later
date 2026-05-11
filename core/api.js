@@ -528,15 +528,35 @@ export async function getWatchLaterList() {
 }
 
 // 获取观看历史（用于过滤已看过的视频）
-export async function getWatchHistory(ps = 30) {
-  const data = await biliFetch(
-    `https://api.bilibili.com/x/v2/history?ps=${ps}&pn=1`
-  );
-  if (data.code !== 0) {
-    console.warn('[api] getWatchHistory API失败 code=', data.code);
-    return [];
+// targetCount: 目标获取条数，通过分页请求达到（API单页上限30）
+export async function getWatchHistory(targetCount = 200) {
+  const ps = 30;
+  let bvids = [];
+  let cursor = 0;
+
+  while (bvids.length < targetCount) {
+    const data = await biliFetch(
+      `https://api.bilibili.com/x/v2/history?ps=${ps}&max=${cursor}`
+    );
+    if (data.code !== 0) {
+      console.warn('[api] getWatchHistory API失败 code=', data.code);
+      break;
+    }
+
+    const list = Array.isArray(data.data) ? data.data : (data.data?.list || []);
+    if (list.length === 0) break;
+
+    for (const item of list) {
+      const bvid = item.bvid || item.history?.bvid;
+      if (bvid) bvids.push(bvid);
+    }
+
+    // 取最后一条的 view_at 作为下一页游标
+    const last = list[list.length - 1];
+    const nextCursor = last?.view_at || last?.history?.view_at;
+    if (!nextCursor) break;
+    cursor = nextCursor;
   }
-  // B站API返回 data.list（对象内含list数组），部分旧版直接返回data数组
-  const list = Array.isArray(data.data) ? data.data : (data.data?.list || []);
-  return list.map(item => item.bvid || item.history?.bvid).filter(Boolean);
+
+  return bvids.slice(0, targetCount);
 }
