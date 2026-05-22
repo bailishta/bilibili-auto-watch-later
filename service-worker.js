@@ -32,27 +32,29 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function calculateNextCheckTime(checkDays, checkTime) {
-  if (!checkDays || checkDays.length === 0) return null;
+function calculateNextCheckTime(schedule) {
+  if (!schedule || Object.keys(schedule).length === 0) return null;
 
-  const [h, m] = (checkTime || '18:00').split(':').map(Number);
   const now = new Date();
-  const today = now.getDay(); // 0=周日
 
-  // 从今天开始往后找7天，找到第一个匹配的日期
   for (let offset = 0; offset < 7; offset++) {
     const d = new Date(now);
     d.setDate(d.getDate() + offset);
-    d.setHours(h, m, 0, 0);
-    if (d > now && checkDays.includes(d.getDay())) {
-      return d.getTime();
+    const day = d.getDay();
+    const time = schedule[day];
+    if (time) {
+      const [h, m] = String(time).split(':').map(Number);
+      d.setHours(h, m, 0, 0);
+      if (d > now) {
+        return d.getTime();
+      }
     }
   }
   return null;
 }
 
 async function scheduleNextCheck(settings) {
-  const nextTime = calculateNextCheckTime(settings.checkDays, settings.checkTime);
+  const nextTime = calculateNextCheckTime(settings.schedule);
   await chrome.alarms.clear('check-watch-later');
   if (nextTime) {
     chrome.alarms.create('check-watch-later', {
@@ -115,7 +117,7 @@ async function handleMessage(msg) {
     case 'saveSettings': {
       await storage.saveSettings(msg.settings);
       // 如果修改了排程设置，重新计算下次检查时间
-      if (msg.settings.checkDays || msg.settings.checkTime) {
+      if (msg.settings.schedule) {
         const settings = await storage.getSettings();
         await scheduleNextCheck(settings);
       }

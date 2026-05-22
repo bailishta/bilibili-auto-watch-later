@@ -44,19 +44,36 @@
       </select>
     </div>
     <div class="setting-row-vert">
-      <span class="setting-label">自动检查日</span>
-      <div class="weekday-group" id="check-days">
-        <label class="weekday-label"><input type="checkbox" value="0" checked>周日</label>
-        <label class="weekday-label"><input type="checkbox" value="1">周一</label>
-        <label class="weekday-label"><input type="checkbox" value="2">周二</label>
-        <label class="weekday-label"><input type="checkbox" value="3">周三</label>
-        <label class="weekday-label"><input type="checkbox" value="4">周四</label>
-        <label class="weekday-label"><input type="checkbox" value="5">周五</label>
-        <label class="weekday-label"><input type="checkbox" value="6" checked>周六</label>
-      </div>
-      <div class="time-row">
-        <span class="setting-label">检查时间</span>
-        <input type="time" id="check-time" class="time-input" value="18:00">
+      <span class="setting-label">自动检查排程</span>
+      <div class="schedule-list" id="schedule-list">
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="0" checked>周日</label>
+          <input type="time" class="time-input schedule-time" data-day="0" value="18:00">
+        </div>
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="1">周一</label>
+          <input type="time" class="time-input schedule-time" data-day="1" value="18:00">
+        </div>
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="2">周二</label>
+          <input type="time" class="time-input schedule-time" data-day="2" value="18:00">
+        </div>
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="3">周三</label>
+          <input type="time" class="time-input schedule-time" data-day="3" value="18:00">
+        </div>
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="4">周四</label>
+          <input type="time" class="time-input schedule-time" data-day="4" value="18:00">
+        </div>
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="5">周五</label>
+          <input type="time" class="time-input schedule-time" data-day="5" value="18:00">
+        </div>
+        <div class="schedule-row">
+          <label class="weekday-label"><input type="checkbox" value="6" checked>周六</label>
+          <input type="time" class="time-input schedule-time" data-day="6" value="18:00">
+        </div>
       </div>
     </div>
 

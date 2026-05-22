@@ -93,9 +93,25 @@ export async function saveStats(stats) {
 
 // ── 设置 ──
 
+const DEFAULT_SCHEDULE = { 0: '18:00', 6: '18:00' };
+
 export async function getSettings() {
   const result = await chrome.storage.local.get(KEYS.SETTINGS);
-  return result[KEYS.SETTINGS] || { checkDays: [0, 6], checkTime: '18:00', importDone: false };
+  const raw = result[KEYS.SETTINGS] || {};
+
+  // 迁移旧格式 { checkDays, checkTime } → 新格式 { schedule }
+  if (!raw.schedule && raw.checkDays) {
+    const schedule = {};
+    for (const day of raw.checkDays) {
+      schedule[day] = raw.checkTime || '18:00';
+    }
+    raw.schedule = schedule;
+    delete raw.checkDays;
+    delete raw.checkTime;
+    await chrome.storage.local.set({ [KEYS.SETTINGS]: raw });
+  }
+
+  return { schedule: { ...DEFAULT_SCHEDULE }, importDone: false, ...raw };
 }
 
 export async function saveSettings(settings) {

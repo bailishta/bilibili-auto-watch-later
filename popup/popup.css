@@ -131,41 +131,40 @@ body {
 }
 .setting-select:focus { border-color: #fb7299; }
 
-/* 星期选择 + 时间 */
+/* 排程设置 */
 .setting-row-vert {
   padding: 8px 10px;
   background: #f6f7f8;
   border-radius: 8px;
   margin-bottom: 10px;
 }
-.weekday-group {
+.schedule-list {
   display: flex;
+  flex-direction: column;
   gap: 4px;
-  margin: 6px 0 8px;
-  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.schedule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .weekday-label {
-  flex: 1;
-  min-width: 38px;
   text-align: center;
   font-size: 11px;
-  padding: 4px 0;
+  padding: 3px 0;
   border-radius: 4px;
   background: #fff;
   color: #9499a0;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s, color 0.15s;
+  width: 44px;
 }
 .weekday-label input { display: none; }
 .weekday-label:has(input:checked) {
   background: #fb7299;
   color: #fff;
-}
-.time-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 .time-input {
   padding: 3px 6px;
@@ -176,6 +175,7 @@ body {
   background: #fff;
   outline: none;
   cursor: pointer;
+  width: 80px;
 }
 .time-input:focus { border-color: #fb7299; }
 

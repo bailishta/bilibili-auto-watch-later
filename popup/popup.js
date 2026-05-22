@@ -18,8 +18,7 @@ const $btnConfirmAdd = document.getElementById('btn-confirm-add');
 const $btnCancel = document.getElementById('btn-cancel');
 const $btnCancelCheck = document.getElementById('btn-cancel-check');
 const $selectWindow = document.getElementById('select-window');
-const $checkDays = document.getElementById('check-days');
-const $checkTime = document.getElementById('check-time');
+const $scheduleList = document.getElementById('schedule-list');
 const $searchTracking = document.getElementById('search-tracking');
 
 let _trackingListCache = {};
@@ -34,14 +33,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (settings?.newVideoWindowHours) {
     $selectWindow.value = String(settings.newVideoWindowHours);
   }
-  // 星期复选框
-  const checkDays = settings?.checkDays || [0, 6];
-  $checkDays.querySelectorAll('input').forEach(cb => {
-    cb.checked = checkDays.includes(parseInt(cb.value));
+  // 排程：每天独立时间
+  const schedule = settings?.schedule || { 0: '18:00', 6: '18:00' };
+  $scheduleList.querySelectorAll('.schedule-row').forEach(row => {
+    const cb = row.querySelector('input[type="checkbox"]');
+    const timeInput = row.querySelector('.schedule-time');
+    const day = parseInt(cb.value);
+    if (schedule[day] !== undefined) {
+      cb.checked = true;
+      timeInput.value = schedule[day];
+    } else {
+      cb.checked = false;
+    }
   });
-  if (settings?.checkTime) {
-    $checkTime.value = settings.checkTime;
-  }
 
   await refreshStatus();
   // 如果有正在进行的检查，恢复进度显示
@@ -59,23 +63,26 @@ $selectWindow.addEventListener('change', async () => {
   });
 });
 
-function getSelectedDays() {
-  const days = [];
-  $checkDays.querySelectorAll('input:checked').forEach(cb => {
-    days.push(parseInt(cb.value));
+function getSchedule() {
+  const schedule = {};
+  $scheduleList.querySelectorAll('.schedule-row').forEach(row => {
+    const cb = row.querySelector('input[type="checkbox"]');
+    const timeInput = row.querySelector('.schedule-time');
+    if (cb.checked) {
+      schedule[parseInt(cb.value)] = timeInput.value;
+    }
   });
-  return days;
+  return schedule;
 }
 
 function saveSchedule() {
   chrome.runtime.sendMessage({
     type: 'saveSettings',
-    settings: { checkDays: getSelectedDays(), checkTime: $checkTime.value }
+    settings: { schedule: getSchedule() }
   });
 }
 
-$checkDays.addEventListener('change', () => saveSchedule());
-$checkTime.addEventListener('change', () => saveSchedule());
+$scheduleList.addEventListener('change', () => saveSchedule());
 
 // ── 按钮事件 ──
 $btnCheck.addEventListener('click', async () => {
