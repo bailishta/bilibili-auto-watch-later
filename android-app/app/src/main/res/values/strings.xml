@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">稍后观看助手</string>
+
+    <!-- 登录 -->
+    <string name="login_title">登录B站</string>
+    <string name="login_description">请登录你的B站账号以使用稍后观看功能</string>
+
+    <!-- 主页 -->
+    <string name="logout">退出登录</string>
+    <string name="check_now">立即检查</string>
+    <string name="checking">检查中…</string>
+    <string name="cancel">取消</string>
+    <string name="add_creator">添加UP主</string>
+    <string name="tracking_list">追踪名单</string>
+    <string name="no_creators">暂无追踪UP主</string>
+    <string name="last_check">上次检查：</string>
+    <string name="new_video_window">新视频判定：</string>
+    <string name="stats_tracking">追踪UP主</string>
+    <string name="stats_new">本次新发现</string>
+    <string name="stats_total">累计添加</string>
+
+    <!-- 添加UP主弹窗 -->
+    <string name="add_creator_title">添加UP主到追踪名单</string>
+    <string name="add_creator_hint">输入UP主的UID或B站主页链接</string>
+    <string name="confirm_add">确认添加</string>
+    <string name="dialog_cancel">取消</string>
+
+    <!-- 错误信息 -->
+    <string name="error_invalid_input">请输入有效的UID（纯数字）或B站主页链接</string>
+    <string name="error_add_failed">添加失败，请检查网络连接或UID是否正确</string>
+</resources>

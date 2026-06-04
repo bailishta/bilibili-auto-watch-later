@@ -12,11 +12,22 @@
 
 ## 安装
 
+### Chrome 扩展
+
 1. 下载本仓库的 [最新 Release](https://github.com/your/repo/releases) 中的 `.zip` 文件并解压
 2. 打开 Chrome，进入 `chrome://extensions/`
 3. 开启右上角**「开发者模式」**
 4. 点击**「加载已解压的扩展程序」**，选择解压后的文件夹
 5. 安装完成后会自动打开引导页，可一键导入 B站关注列表
+
+### Android 客户端
+
+详见 `android-app/CLAUDE.md`。
+
+1. 下载 [最新 Release](https://github.com/your/repo/releases) 中的 APK 文件
+2. 安装到手机，首次打开需通过内嵌 WebView 登录 B站
+3. 登录后点击「导入关注列表」一键导入 B站 关注
+4. 点击「立即检查」手动扫描新视频
 
 ## 使用说明
 
