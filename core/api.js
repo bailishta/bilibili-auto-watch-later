@@ -529,7 +529,7 @@ export async function getWatchLaterList() {
 
 // 获取观看历史（用于过滤已看过的视频）
 // targetCount: 目标获取条数，通过分页请求达到（API单页上限30）
-export async function getWatchHistory(targetCount = 200) {
+export async function getWatchHistory(targetCount = 500) {
   const ps = 30;
   let bvids = [];
   let cursor = 0;

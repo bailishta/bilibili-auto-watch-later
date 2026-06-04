@@ -255,7 +255,7 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
 
     // ── 观看历史 ──
 
-    suspend fun getWatchHistory(targetCount: Int = 200): Set<String> {
+    suspend fun getWatchHistory(targetCount: Int = 500): Set<String> {
         val bvids = mutableSetOf<String>()
         var cursor = 0L
         val ps = 30

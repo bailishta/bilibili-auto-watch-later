@@ -64,7 +64,7 @@ class CheckRepository(
 
         var watchedBvids = emptySet<String>()
         try {
-            watchedBvids = api.getWatchHistory(200)
+            watchedBvids = api.getWatchHistory(500)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
