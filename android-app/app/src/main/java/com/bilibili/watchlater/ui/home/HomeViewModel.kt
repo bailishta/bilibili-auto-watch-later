@@ -26,7 +26,8 @@ data class HomeUiState(
     val newVideoWindowHours: Int = 24,
     val report: CheckReport? = null,
     val addDialogVisible: Boolean = false,
-    val addError: String? = null
+    val addError: String? = null,
+    val searchQuery: String = ""
 )
 
 class HomeViewModel(
@@ -120,6 +121,10 @@ class HomeViewModel(
                 _uiState.value = _uiState.value.copy(isChecking = false)
             }
         }
+    }
+
+    fun setSearchQuery(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
     fun cancelCheck() {

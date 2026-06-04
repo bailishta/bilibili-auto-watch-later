@@ -24,6 +24,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -159,18 +162,44 @@ fun HomeScreen(
                 }
             }
 
-            // 追踪名单列表
-            if (creators.isEmpty()) {
+            // 搜索框
+            item {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.setSearchQuery(it) },
+                    placeholder = { Text("搜索UP主名称或UID", fontSize = (13 * scale.fontScale).sp) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = TextHint)
+                    },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = (16 * scale.spacingScale).dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = BgWhite,
+                        unfocusedContainerColor = BgWhite,
+                        focusedBorderColor = Pink,
+                        unfocusedBorderColor = PinkBg
+                    ),
+                    shape = RoundedCornerShape((8 * scale.spacingScale).dp)
+                )
+            }
+
+            // 追踪名单列表（过滤后）
+            val q = uiState.searchQuery.trim().lowercase()
+            val filtered = if (q.isEmpty()) creators
+                else creators.filter { it.mid.toString().contains(q) || it.name.lowercase().contains(q) }
+            if (filtered.isEmpty()) {
                 item {
                     Text(
-                        text = stringResource(R.string.no_creators),
+                        text = if (q.isNotEmpty()) "无匹配结果" else stringResource(R.string.no_creators),
                         color = TextHint,
                         fontSize = (14 * scale.fontScale).sp,
                         modifier = Modifier.padding((16 * scale.spacingScale).dp)
                     )
                 }
             } else {
-                items(creators, key = { it.mid }) { creator ->
+                items(filtered, key = { it.mid }) { creator ->
                     CreatorItem(creator, onRemove = { viewModel.removeCreator(creator.mid) })
                 }
             }
