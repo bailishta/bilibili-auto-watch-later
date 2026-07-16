@@ -33,6 +33,27 @@ export async function isInTrackingList(mid) {
   return !!list[mid];
 }
 
+export async function importTrackingList(creators) {
+  const list = await getTrackingList();
+  let added = 0;
+  let skipped = 0;
+  for (const item of creators) {
+    if (!item.mid) continue;
+    if (list[item.mid]) {
+      skipped++;
+      continue;
+    }
+    list[item.mid] = {
+      name: item.name || `UP主_${item.mid}`,
+      face: item.face || '',
+      addedAt: Date.now()
+    };
+    added++;
+  }
+  await chrome.storage.local.set({ [KEYS.TRACKING_LIST]: list });
+  return { added, skipped };
+}
+
 export async function getTrackingListCount() {
   const list = await getTrackingList();
   return Object.keys(list).length;

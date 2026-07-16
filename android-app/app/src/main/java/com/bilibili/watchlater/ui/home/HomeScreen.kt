@@ -1,5 +1,8 @@
 package com.bilibili.watchlater.ui.home
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -38,9 +42,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,12 +55,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.bilibili.watchlater.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.bilibili.watchlater.ui.components.AddCreatorDialog
 import com.bilibili.watchlater.ui.theme.BgGray
 import com.bilibili.watchlater.ui.theme.BgWhite
@@ -76,8 +84,38 @@ fun HomeScreen(
     onOpenLog: () -> Unit = {}
 ) {
     val scale = LocalDeviceScale.current
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val creators by viewModel.creators.collectAsState()
+
+    // 文件选择器（导入）
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importTrackingList(it, context) }
+    }
+
+    // 导出文件分享
+    LaunchedEffect(uiState.exportFile) {
+        uiState.exportFile?.let { file ->
+            try {
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "导出追踪名单"))
+            } catch (e: Exception) {
+                android.util.Log.e("HomeScreen", "分享文件失败", e)
+            }
+            viewModel.clearExportFile()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -130,34 +168,54 @@ fun HomeScreen(
 
             // 追踪名单标题
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
                             horizontal = (16 * scale.spacingScale).dp,
                             vertical = (12 * scale.spacingScale).dp
-                        ),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${stringResource(R.string.tracking_list)} (${creators.size})",
-                        fontSize = (16 * scale.fontScale).sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                    Button(
-                        onClick = { viewModel.showAddDialog() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Pink),
-                        contentPadding = ButtonDefaults.TextButtonContentPadding
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size((18 * scale.spacingScale).dp)
                         )
-                        Spacer(modifier = Modifier.width((4 * scale.spacingScale).dp))
-                        Text(stringResource(R.string.add_creator), fontSize = (13 * scale.fontScale).sp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${stringResource(R.string.tracking_list)} (${creators.size})",
+                            fontSize = (16 * scale.fontScale).sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Button(
+                            onClick = { viewModel.showAddDialog() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Pink),
+                            contentPadding = ButtonDefaults.TextButtonContentPadding
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size((18 * scale.spacingScale).dp)
+                            )
+                            Spacer(modifier = Modifier.width((4 * scale.spacingScale).dp))
+                            Text(stringResource(R.string.add_creator), fontSize = (13 * scale.fontScale).sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height((8 * scale.spacingScale).dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = { viewModel.exportTrackingList(context) }
+                        ) {
+                            Text("导出名单", fontSize = (13 * scale.fontScale).sp, color = Pink)
+                        }
+                        TextButton(
+                            onClick = { importLauncher.launch(arrayOf("application/json")) }
+                        ) {
+                            Text("导入名单", fontSize = (13 * scale.fontScale).sp, color = Pink)
+                        }
                     }
                 }
             }
@@ -229,6 +287,31 @@ fun HomeScreen(
             error = uiState.addError,
             onConfirm = { viewModel.addCreator(it) },
             onDismiss = { viewModel.hideAddDialog() }
+        )
+    }
+
+    // 导入/导出结果弹窗
+    uiState.importResult?.let { result ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissImportResult() },
+            title = {
+                Text(
+                    text = if (result.error != null) "操作失败" else "导入完成",
+                    fontSize = (16 * scale.fontScale).sp
+                )
+            },
+            text = {
+                Text(
+                    text = result.error
+                        ?: "新增 ${result.added} 位UP主" + if (result.skipped > 0) "，跳过 ${result.skipped} 位（已存在）" else "",
+                    fontSize = (14 * scale.fontScale).sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissImportResult() }) {
+                    Text("确定", fontSize = (14 * scale.fontScale).sp)
+                }
+            }
         )
     }
 }

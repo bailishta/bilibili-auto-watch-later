@@ -186,6 +186,20 @@ async function handleMessage(msg) {
       return _importProgress || null;
     }
 
+    case 'exportTrackingList': {
+      const list = await storage.getTrackingList();
+      return list;
+    }
+
+    case 'importTrackingList': {
+      const { creators } = msg;
+      if (!Array.isArray(creators) || creators.length === 0) {
+        return { success: false, reason: '无效的名单数据' };
+      }
+      const result = await storage.importTrackingList(creators);
+      return { success: true, ...result };
+    }
+
     default:
       return { error: '未知消息类型' };
   }

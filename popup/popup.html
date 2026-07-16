@@ -90,8 +90,13 @@
     <div class="section">
       <div class="section-header">
         <span class="section-title">追踪名单</span>
-        <button class="btn btn-sm" id="btn-add">+ 添加UP主</button>
+        <div class="section-header-actions">
+          <button class="btn btn-sm" id="btn-export" title="导出名单为JSON文件">导出</button>
+          <button class="btn btn-sm" id="btn-import" title="从JSON文件导入名单">导入</button>
+          <button class="btn btn-sm" id="btn-add">+ 添加UP主</button>
+        </div>
       </div>
+      <input type="file" id="import-file-input" accept=".json" style="display:none">
       <input type="text" class="search-input" id="search-tracking" placeholder="搜索UP主名称或UID...">
       <div id="tracking-list" class="scroll-list">
         <div class="empty-hint">暂无追踪UP主</div>

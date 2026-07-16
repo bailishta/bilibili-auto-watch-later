@@ -1,12 +1,16 @@
 package com.bilibili.watchlater.ui.home
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bilibili.watchlater.data.local.entity.CreatorEntity
 import com.bilibili.watchlater.data.remote.BiliApiService
 import com.bilibili.watchlater.data.repository.CheckReport
 import com.bilibili.watchlater.data.repository.CheckRepository
 import com.bilibili.watchlater.data.repository.CreatorRepository
 import com.bilibili.watchlater.data.repository.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +18,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 
 data class HomeUiState(
     val isChecking: Boolean = false,
@@ -27,7 +35,15 @@ data class HomeUiState(
     val report: CheckReport? = null,
     val addDialogVisible: Boolean = false,
     val addError: String? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val importResult: ImportDialogState? = null,
+    val exportFile: File? = null
+)
+
+data class ImportDialogState(
+    val added: Int,
+    val skipped: Int,
+    val error: String? = null
 )
 
 class HomeViewModel(
@@ -130,6 +146,108 @@ class HomeViewModel(
     fun cancelCheck() {
         checkRepo.cancel()
         _uiState.value = _uiState.value.copy(isChecking = false)
+    }
+
+    fun dismissImportResult() {
+        _uiState.value = _uiState.value.copy(importResult = null)
+    }
+
+    fun clearExportFile() {
+        _uiState.value = _uiState.value.copy(exportFile = null)
+    }
+
+    fun exportTrackingList(context: Context) {
+        viewModelScope.launch {
+            try {
+                val all = creatorRepo.getAll()
+                if (all.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        importResult = ImportDialogState(added = 0, skipped = 0, error = "追踪名单为空，无需导出")
+                    )
+                    return@launch
+                }
+
+                val json = JSONObject().apply {
+                    put("version", 1)
+                    put("exportedAt", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date()))
+                    put("count", all.size)
+                    put("creators", JSONArray().apply {
+                        all.forEach { c ->
+                            put(JSONObject().apply {
+                                put("mid", c.mid.toString())
+                                put("name", c.name)
+                                put("face", c.face)
+                            })
+                        }
+                    })
+                }
+
+                val jsonStr = json.toString(2)
+                val file = withContext(Dispatchers.IO) {
+                    val dir = context.cacheDir
+                    val f = File(dir, "bilibili-tracking-list-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.json")
+                    f.writeText(jsonStr)
+                    f
+                }
+
+                _uiState.value = _uiState.value.copy(exportFile = file)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "导出失败", e)
+                _uiState.value = _uiState.value.copy(
+                    importResult = ImportDialogState(added = 0, skipped = 0, error = "导出失败：${e.message}")
+                )
+            }
+        }
+    }
+
+    fun importTrackingList(uri: Uri, context: Context) {
+        viewModelScope.launch {
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
+                        ?: throw Exception("无法读取文件")
+                }
+
+                val json = JSONObject(text)
+                val arr = json.getJSONArray("creators")
+                if (arr.length() == 0) {
+                    _uiState.value = _uiState.value.copy(
+                        importResult = ImportDialogState(added = 0, skipped = 0, error = "文件中没有有效的UP主数据")
+                    )
+                    return@launch
+                }
+
+                val creators = (0 until arr.length()).map { i ->
+                    val obj = arr.getJSONObject(i)
+                    val midStr = obj.optString("mid", "")
+                    val mid = midStr.toLongOrNull() ?: return@map null
+                    CreatorEntity(
+                        mid = mid,
+                        name = obj.optString("name", "UP主_$mid"),
+                        face = obj.optString("face", "")
+                    )
+                }.filterNotNull()
+
+                if (creators.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        importResult = ImportDialogState(added = 0, skipped = 0, error = "文件中没有有效的UP主数据")
+                    )
+                    return@launch
+                }
+
+                val result = creatorRepo.importCreators(creators)
+                _uiState.value = _uiState.value.copy(importResult = ImportDialogState(added = result.imported, skipped = result.skipped))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "导入失败", e)
+                _uiState.value = _uiState.value.copy(
+                    importResult = ImportDialogState(added = 0, skipped = 0, error = "导入失败：${e.message}")
+                )
+            }
+        }
     }
 
     private fun parseMid(input: String): Long? {

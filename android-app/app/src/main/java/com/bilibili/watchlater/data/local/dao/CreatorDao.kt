@@ -27,4 +27,7 @@ interface CreatorDao {
 
     @Query("SELECT COUNT(*) FROM creators")
     suspend fun count(): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(creators: List<CreatorEntity>): List<Long>
 }

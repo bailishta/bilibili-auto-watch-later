@@ -21,4 +21,15 @@ class CreatorRepository(private val dao: CreatorDao) {
     }
 
     suspend fun count(): Int = dao.count()
+
+    suspend fun importCreators(creators: List<CreatorEntity>): ImportResult {
+        val existing = dao.getAllList().map { it.mid }.toSet()
+        val newCreators = creators.filter { it.mid !in existing }
+        if (newCreators.isEmpty()) {
+            return ImportResult(imported = 0, skipped = creators.size, total = creators.size)
+        }
+        val results = dao.insertAll(newCreators)
+        val imported = results.count { it != -1L }
+        return ImportResult(imported = imported, skipped = creators.size - imported, total = creators.size)
+    }
 }

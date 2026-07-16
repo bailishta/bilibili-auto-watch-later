@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "B站稍后观看助手",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "自动将指定UP主的新视频添加到B站「稍后观看」列表",
   "permissions": [
     "storage",
     "alarms",
     "cookies",
-    "tabs"
+    "tabs",
+    "downloads"
   ],
   "host_permissions": [
     "https://*.bilibili.com/*"

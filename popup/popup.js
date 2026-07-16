@@ -20,6 +20,9 @@ const $btnCancelCheck = document.getElementById('btn-cancel-check');
 const $selectWindow = document.getElementById('select-window');
 const $scheduleList = document.getElementById('schedule-list');
 const $searchTracking = document.getElementById('search-tracking');
+const $btnExport = document.getElementById('btn-export');
+const $btnImport = document.getElementById('btn-import');
+const $importFileInput = document.getElementById('import-file-input');
 
 let _trackingListCache = {};
 
@@ -180,6 +183,86 @@ $btnCancelCheck.addEventListener('click', async () => {
 // 搜索过滤
 $searchTracking.addEventListener('input', () => {
   renderTrackingList(_trackingListCache, $searchTracking.value);
+});
+
+// ── 导出/导入 ──
+$btnExport.addEventListener('click', async () => {
+  try {
+    const list = await chrome.runtime.sendMessage({ type: 'exportTrackingList' });
+    const mids = Object.keys(list);
+    if (mids.length === 0) {
+      alert('追踪名单为空，无需导出');
+      return;
+    }
+    // 构建导出数据结构
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      count: mids.length,
+      creators: mids.map(mid => ({
+        mid,
+        name: list[mid].name,
+        face: list[mid].face || ''
+      }))
+    };
+    const json = JSON.stringify(data, null, 2);
+    const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    const filename = `bilibili-tracking-list-${new Date().toISOString().slice(0, 10)}.json`;
+    await chrome.downloads.download({
+      url: dataUrl,
+      filename: filename,
+      saveAs: true
+    });
+  } catch (e) {
+    console.error('[导出名单]', e);
+    alert('导出失败：' + (e.message || '未知错误'));
+  }
+});
+
+$btnImport.addEventListener('click', () => {
+  $importFileInput.click();
+});
+
+$importFileInput.addEventListener('change', async () => {
+  const file = $importFileInput.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    // 验证格式
+    if (!data.creators || !Array.isArray(data.creators)) {
+      throw new Error('文件格式不正确：缺少 creators 数组');
+    }
+
+    const creators = data.creators.filter(c => c.mid);
+    if (creators.length === 0) {
+      throw new Error('文件中没有有效的UP主数据');
+    }
+
+    const result = await chrome.runtime.sendMessage({
+      type: 'importTrackingList',
+      creators
+    });
+
+    if (result.success) {
+      let msg = `导入完成！新增 ${result.added} 位UP主`;
+      if (result.skipped > 0) {
+        msg += `，跳过 ${result.skipped} 位（已存在）`;
+      }
+      alert(msg);
+      refreshStatus();
+    } else {
+      alert('导入失败：' + (result.reason || '未知错误'));
+    }
+  } catch (e) {
+    console.error('[导入名单]', e);
+    alert('导入失败：' + (e.message || '文件解析错误'));
+  }
+
+  // 清空文件选择，允许重复选择同一文件
+  $importFileInput.value = '';
 });
 
 // 点击弹窗外部关闭
