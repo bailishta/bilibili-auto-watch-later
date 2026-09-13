@@ -1,448 +1,101 @@
-// ── DOM 元素 ──
-const $statusBadge = document.getElementById('status-badge');
-const $statTracking = document.getElementById('stat-tracking');
-const $statNew = document.getElementById('stat-new');
-const $btnCheck = document.getElementById('btn-check');
-const $btnOpenWl = document.getElementById('btn-open-wl');
-const $btnReimport = document.getElementById('btn-reimport');
-const $btnAdd = document.getElementById('btn-add');
-const $trackingList = document.getElementById('tracking-list');
-const $lastCheck = document.getElementById('last-check');
-const $checkProgress = document.getElementById('check-progress');
-const $progressFill = document.getElementById('progress-fill');
-const $progressLabel = document.getElementById('progress-label');
-const $addModal = document.getElementById('add-modal');
-const $addInput = document.getElementById('add-input');
-const $addError = document.getElementById('add-error');
-const $btnConfirmAdd = document.getElementById('btn-confirm-add');
-const $btnCancel = document.getElementById('btn-cancel');
-const $btnCancelCheck = document.getElementById('btn-cancel-check');
-const $selectWindow = document.getElementById('select-window');
-const $scheduleList = document.getElementById('schedule-list');
-const $searchTracking = document.getElementById('search-tracking');
-const $btnExport = document.getElementById('btn-export');
-const $btnImport = document.getElementById('btn-import');
-const $importFileInput = document.getElementById('import-file-input');
+const $ = id => document.getElementById(id);
+const $check = $('btn-check');
+const $reimport = $('btn-reimport');
+let checking = false;
+let refreshingMeta = false;
+let importing = false;
 
-let _trackingListCache = {};
+function feedback(message = '') {
+  $('feedback').textContent = message;
+  $('feedback').hidden = !message;
+}
 
-let _progressInterval = null;
-let _stopProgressTimeout = null;
+function renderActions(progress) {
+  $check.disabled = checking || refreshingMeta || importing;
+  $check.textContent = checking
+    ? (progress?.total ? `检查中… ${progress.current}/${progress.total}` : '检查中…')
+    : refreshingMeta ? '排序数据刷新中…' : '立即检查';
+  $reimport.disabled = importing || checking || refreshingMeta;
+  $reimport.textContent = importing ? '导入中…' : '重新导入关注';
+}
 
-// ── 初始化 ──
-document.addEventListener('DOMContentLoaded', async () => {
-  // 加载设置
-  const settings = await chrome.runtime.sendMessage({ type: 'getSettings' });
-  if (settings?.newVideoWindowHours) {
-    $selectWindow.value = String(settings.newVideoWindowHours);
-  }
-  // 排程：每天独立时间
-  const schedule = settings?.schedule || { 0: '18:00', 6: '18:00' };
-  $scheduleList.querySelectorAll('.schedule-row').forEach(row => {
-    const cb = row.querySelector('input[type="checkbox"]');
-    const timeInput = row.querySelector('.schedule-time');
-    const day = parseInt(cb.value);
-    if (schedule[day] !== undefined) {
-      cb.checked = true;
-      timeInput.value = schedule[day];
-    } else {
-      cb.checked = false;
-    }
-  });
+async function refreshStatus() {
+  const status = await chrome.runtime.sendMessage({ type: 'getStatus' });
+  if (!status || status.error) throw new Error(status?.error || '无法读取扩展状态');
+  $('status-badge').textContent = status.authenticated ? '已登录' : '未登录';
+  $('status-badge').className = `badge ${status.authenticated ? 'logged-in' : 'not-logged-in'}`;
+  $('stat-tracking').textContent = status.trackingCount ?? 0;
+  $('stat-new').textContent = status.lastNewCount ?? 0;
+}
 
+async function syncState() {
+  const [progress, meta, imported] = await Promise.all([
+    chrome.runtime.sendMessage({ type: 'getCheckProgress' }),
+    chrome.runtime.sendMessage({ type: 'getMetaProgress' }),
+    chrome.runtime.sendMessage({ type: 'getImportProgress' })
+  ]);
+  checking = progress?.type === 'progress';
+  refreshingMeta = meta?.type === 'progress';
+  importing = imported?.type === 'import-progress';
+  renderActions(progress);
   await refreshStatus();
-  // 如果有正在进行的检查，恢复进度显示
-  const p = await chrome.runtime.sendMessage({ type: 'getCheckProgress' });
-  if (p && p.type === 'progress') {
-    resumeProgress();
-  }
-});
-
-// ── 设置变更 ──
-$selectWindow.addEventListener('change', async () => {
-  await chrome.runtime.sendMessage({
-    type: 'saveSettings',
-    settings: { newVideoWindowHours: parseInt($selectWindow.value) }
-  });
-});
-
-function getSchedule() {
-  const schedule = {};
-  $scheduleList.querySelectorAll('.schedule-row').forEach(row => {
-    const cb = row.querySelector('input[type="checkbox"]');
-    const timeInput = row.querySelector('.schedule-time');
-    if (cb.checked) {
-      schedule[parseInt(cb.value)] = timeInput.value;
-    }
-  });
-  return schedule;
 }
 
-function saveSchedule() {
-  chrome.runtime.sendMessage({
-    type: 'saveSettings',
-    settings: { schedule: getSchedule() }
-  });
-}
-
-$scheduleList.addEventListener('change', () => saveSchedule());
-
-// ── 按钮事件 ──
-$btnCheck.addEventListener('click', async () => {
-  $btnCheck.disabled = true;
-  $btnCheck.textContent = '检查中...';
-  $checkProgress.style.display = 'block';
-  $progressFill.style.width = '0%';
-  $progressLabel.textContent = '正在检查...';
-
-  // 发送检查请求
-  chrome.runtime.sendMessage({ type: 'triggerCheck' });
-  startProgressPolling();
+$('btn-manage').addEventListener('click', async () => {
+  try { await chrome.runtime.openOptionsPage(); }
+  catch (e) { feedback(`打开管理中心失败：${e.message}`); }
 });
 
-$btnOpenWl.addEventListener('click', () => {
+$('btn-open-wl').addEventListener('click', () => {
   chrome.tabs.create({ url: 'https://www.bilibili.com/watchlater/' });
 });
 
-$btnReimport.addEventListener('click', async () => {
-  $btnReimport.textContent = '导入中...';
-  $btnReimport.disabled = true;
-  await chrome.runtime.sendMessage({ type: 'importFollowList' });
-  $btnReimport.textContent = '重新导入关注';
-  $btnReimport.disabled = false;
-  refreshStatus();
-});
-
-$btnAdd.addEventListener('click', () => {
-  $addModal.style.display = 'flex';
-  $addInput.value = '';
-  $addError.style.display = 'none';
-});
-
-$btnCancel.addEventListener('click', () => {
-  $addModal.style.display = 'none';
-});
-
-$btnConfirmAdd.addEventListener('click', async () => {
-  const raw = $addInput.value.trim();
-  if (!raw) {
-    $addError.textContent = '请输入UID或B站主页链接';
-    $addError.style.display = 'block';
-    return;
-  }
-
-  let mid;
-  // 从链接中提取UID
-  const uidMatch = raw.match(/space\.bilibili\.com\/(\d+)/);
-  if (uidMatch) {
-    mid = uidMatch[1];
-  } else if (/^\d+$/.test(raw)) {
-    mid = raw;
-  } else {
-    $addError.textContent = '请输入有效的UID（纯数字）或B站主页链接';
-    $addError.style.display = 'block';
-    return;
-  }
-
-  $btnConfirmAdd.disabled = true;
-  $btnConfirmAdd.textContent = '查询中...';
-
-  const res = await chrome.runtime.sendMessage({
-    type: 'addCreator',
-    mid,
-    name: '', // 由后端通过API获取
-    face: ''
-  });
-
-  if (res.success) {
-    $addModal.style.display = 'none';
-    refreshStatus();
-    // 在控制台打印日志
-    if (res.logs) console.log('[添加UP主]', res.logs.join(' → '));
-  } else {
-    const errMsg = res.reason || '添加失败';
-    const debugInfo = res.logs ? '\n调试: ' + res.logs.join(' → ') : '';
-    $addError.textContent = errMsg + debugInfo;
-    $addError.style.display = 'block';
-    console.error('[添加UP主失败]', errMsg, res.logs);
-  }
-
-  $btnConfirmAdd.disabled = false;
-  $btnConfirmAdd.textContent = '确认添加';
-});
-
-$btnCancelCheck.addEventListener('click', async () => {
-  await chrome.runtime.sendMessage({ type: 'cancelCheck' });
-  stopProgress();
-  $checkProgress.style.display = 'none';
-  $btnCheck.disabled = false;
-  $btnCheck.textContent = '立即检查';
-  refreshStatus();
-});
-
-// 搜索过滤
-$searchTracking.addEventListener('input', () => {
-  renderTrackingList(_trackingListCache, $searchTracking.value);
-});
-
-// ── 导出/导入 ──
-$btnExport.addEventListener('click', async () => {
+$check.addEventListener('click', async () => {
+  checking = true;
+  feedback();
+  renderActions();
   try {
-    const list = await chrome.runtime.sendMessage({ type: 'exportTrackingList' });
-    const mids = Object.keys(list);
-    if (mids.length === 0) {
-      alert('追踪名单为空，无需导出');
-      return;
-    }
-    // 构建导出数据结构
-    const data = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      count: mids.length,
-      creators: mids.map(mid => ({
-        mid,
-        name: list[mid].name,
-        face: list[mid].face || ''
-      }))
-    };
-    const json = JSON.stringify(data, null, 2);
-    const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-    const filename = `bilibili-tracking-list-${new Date().toISOString().slice(0, 10)}.json`;
-    await chrome.downloads.download({
-      url: dataUrl,
-      filename: filename,
-      saveAs: true
-    });
+    const result = await chrome.runtime.sendMessage({ type: 'triggerCheck' });
+    if (result?.error || result?.success === false) throw new Error(result.error || result.reason);
+    if (result?.status === 'not_logged_in') feedback('请先登录 B站。');
+    else if (result?.status === 'empty_list') feedback('名单为空，请导入关注或到管理中心添加 UP主。');
+    else if (result?.status === 'error') feedback('检查失败，请到管理中心查看。');
   } catch (e) {
-    console.error('[导出名单]', e);
-    alert('导出失败：' + (e.message || '未知错误'));
+    feedback(`检查失败：${e.message}`);
+  } finally {
+    checking = false;
+    renderActions();
+    await syncState().catch(e => feedback(e.message));
   }
 });
 
-$btnImport.addEventListener('click', () => {
-  $importFileInput.click();
-});
-
-$importFileInput.addEventListener('change', async () => {
-  const file = $importFileInput.files[0];
-  if (!file) return;
-
+$reimport.addEventListener('click', async () => {
+  importing = true;
+  feedback();
+  renderActions();
   try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-
-    // 验证格式
-    if (!data.creators || !Array.isArray(data.creators)) {
-      throw new Error('文件格式不正确：缺少 creators 数组');
-    }
-
-    const creators = data.creators.filter(c => c.mid);
-    if (creators.length === 0) {
-      throw new Error('文件中没有有效的UP主数据');
-    }
-
-    const result = await chrome.runtime.sendMessage({
-      type: 'importTrackingList',
-      creators
-    });
-
-    if (result.success) {
-      let msg = `导入完成！新增 ${result.added} 位UP主`;
-      if (result.skipped > 0) {
-        msg += `，跳过 ${result.skipped} 位（已存在）`;
-      }
-      alert(msg);
-      refreshStatus();
-    } else {
-      alert('导入失败：' + (result.reason || '未知错误'));
-    }
+    const result = await chrome.runtime.sendMessage({ type: 'importFollowList' });
+    if (result?.error) throw new Error(result.error);
+    if (result?.status === 'not_logged_in') feedback('请先登录 B站。');
+    else if (result?.status === 'ok') feedback(`导入完成，新增 ${result.imported ?? 0} 位 UP主。`);
+    else feedback('导入未完成，请稍后重试。');
   } catch (e) {
-    console.error('[导入名单]', e);
-    alert('导入失败：' + (e.message || '文件解析错误'));
-  }
-
-  // 清空文件选择，允许重复选择同一文件
-  $importFileInput.value = '';
-});
-
-// 点击弹窗外部关闭
-$addModal.addEventListener('click', (e) => {
-  if (e.target === $addModal) $addModal.style.display = 'none';
-});
-
-// ── 状态刷新 ──
-async function refreshStatus() {
-  const status = await chrome.runtime.sendMessage({ type: 'getStatus' });
-
-  // 登录状态
-  if (status.authenticated) {
-    $statusBadge.textContent = '已登录';
-    $statusBadge.className = 'badge logged-in';
-  } else {
-    $statusBadge.textContent = '未登录';
-    $statusBadge.className = 'badge not-logged-in';
-  }
-
-  // 统计
-  $statTracking.textContent = status.trackingCount || 0;
-  $statNew.textContent = status.lastNewCount || '--';
-
-  // 上次检查
-  if (status.lastCheck) {
-    const d = new Date(status.lastCheck);
-    $lastCheck.textContent = `上次检查：${d.toLocaleString('zh-CN')}`;
-  } else {
-    $lastCheck.textContent = '尚未检查';
-  }
-
-  // 追踪名单
-  const trackingList = await chrome.runtime.sendMessage({ type: 'getTrackingList' });
-  _trackingListCache = trackingList || {};
-  renderTrackingList(_trackingListCache, $searchTracking.value);
-}
-
-function renderTrackingList(list, filter) {
-  let mids = Object.keys(list || {});
-  const q = (filter || '').trim().toLowerCase();
-  if (q) {
-    mids = mids.filter(mid => {
-      const u = list[mid];
-      return mid.includes(q) || (u.name || '').toLowerCase().includes(q);
-    });
-  }
-
-  if (mids.length === 0) {
-    $trackingList.innerHTML = `<div class="empty-hint">${q ? '无匹配结果' : '暂无追踪UP主'}</div>`;
-    return;
-  }
-
-  $trackingList.innerHTML = mids.map(mid => {
-    const u = list[mid];
-    return `
-      <div class="list-item">
-        <img class="avatar" src="${escapeHtml(u.face || '')}" onerror="this.style.display='none'" alt="">
-        <div class="info">
-          <div class="name" title="${escapeHtml(u.name)}">${escapeHtml(u.name)}</div>
-          <div class="meta">UID: ${mid}</div>
-        </div>
-        <button class="delete-btn" data-mid="${mid}" title="移除">×</button>
-      </div>`;
-  }).join('');
-
-  // 绑定删除事件
-  $trackingList.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const mid = btn.dataset.mid;
-      await chrome.runtime.sendMessage({ type: 'removeCreator', mid });
-      refreshStatus();
-    });
-  });
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
-
-// ── 进度轮询（共享，支持关闭popup后再打开恢复进度） ──
-
-function stopProgress() {
-  if (_progressInterval) clearInterval(_progressInterval);
-  if (_stopProgressTimeout) clearTimeout(_stopProgressTimeout);
-  _progressInterval = null;
-  _stopProgressTimeout = null;
-}
-
-function startProgressPolling() {
-  stopProgress(); // 清除旧状态
-
-  $checkProgress.style.display = 'block';
-  $btnCheck.disabled = true;
-  $btnCheck.textContent = '检查中...';
-  $progressFill.style.width = '0%';
-  $progressLabel.textContent = '正在检查...';
-
-  const doPoll = async () => {
-    const p = await chrome.runtime.sendMessage({ type: 'getCheckProgress' });
-    if (!p) return;
-
-    if (p.type === 'progress') {
-      $progressFill.style.width = `${(p.current / p.total) * 100}%`;
-      $progressLabel.textContent = `检查中... ${p.current}/${p.total} ${p.name || ''}`;
-    } else if (p.type === 'complete') {
-      stopProgress();
-      $checkProgress.style.display = 'none';
-      $btnCheck.disabled = false;
-      $btnCheck.textContent = '立即检查';
-      const report = p.report;
-      if (report) {
-        if (report.status === 'empty_list') {
-          // 名单为空，不做特别提示
-        } else if (report.status === 'not_logged_in') {
-          $statusBadge.textContent = '未登录';
-          $statusBadge.className = 'badge not-logged-in';
-        } else if (report.status === 'cancelled') {
-          // 已取消
-        }
-        if (report.added > 0) {
-          $statNew.textContent = report.added;
-        }
-      }
-      refreshStatus();
-    }
-  };
-
-  _progressInterval = setInterval(doPoll, 500);
-  _stopProgressTimeout = setTimeout(() => {
-    stopProgress();
-    $checkProgress.style.display = 'none';
-    $btnCheck.disabled = false;
-    $btnCheck.textContent = '立即检查';
-    refreshStatus();
-  }, 120000);
-}
-
-function resumeProgress() {
-  startProgressPolling();
-}
-
-// ── 调试日志面板 ──
-const $debugSection = document.getElementById('debug-section');
-const $debugContent = document.getElementById('debug-content');
-const $debugToggle = document.getElementById('debug-toggle');
-
-// 存储最近的调试日志
-let _debugLogs = [];
-
-function addDebugLog(msg, type) {
-  _debugLogs.push({ msg, type, time: Date.now() });
-  if (_debugLogs.length > 50) _debugLogs.shift();
-  renderDebugLogs();
-}
-
-function renderDebugLogs() {
-  if (_debugLogs.length === 0) return;
-  $debugSection.style.display = 'block';
-  $debugContent.innerHTML = _debugLogs.map(l =>
-    `<div class="log-line ${l.type === 'error' ? 'log-error' : l.type === 'success' ? 'log-success' : ''}">${escapeHtml(l.msg)}</div>`
-  ).join('');
-}
-
-$debugToggle.addEventListener('click', () => {
-  const content = $debugContent;
-  if (content.style.display === 'none') {
-    content.style.display = 'block';
-    $debugToggle.textContent = '📋 调试日志 ▼';
-  } else {
-    content.style.display = 'none';
-    $debugToggle.textContent = '📋 调试日志 ▶';
+    feedback(`导入失败：${e.message}`);
+  } finally {
+    importing = false;
+    renderActions();
+    await syncState().catch(e => feedback(e.message));
   }
 });
 
-// 在检查按钮点击时记录日志
-const origCheckClick = $btnCheck.onclick;
-$btnCheck.addEventListener('click', () => {
-  addDebugLog('手动触发检查...', 'info');
+// 只展示后台状态，关闭弹窗不会取消检查；详细进度与取消入口在管理页。
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (changes._checkProgress) checking = changes._checkProgress.newValue?.type === 'progress';
+  if (changes._metaProgress) refreshingMeta = changes._metaProgress.newValue?.type === 'progress';
+  if (changes._importProgress) importing = changes._importProgress.newValue?.type === 'import-progress';
+  renderActions(changes._checkProgress?.newValue);
+  if (changes.stats || changes.trackingList) refreshStatus().catch(e => feedback(e.message));
 });
+
+document.addEventListener('DOMContentLoaded', () => syncState().catch(e => feedback(e.message)));

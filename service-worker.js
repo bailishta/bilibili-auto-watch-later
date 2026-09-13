@@ -1,6 +1,8 @@
 import * as api from './core/api.js';
 import * as storage from './core/storage.js';
 import { checkForNewVideos, importFollowList } from './core/checker.js';
+import { refreshCreatorMeta } from './core/meta.js';
+import { calculateNextCheckTime } from './core/schedules.js';
 
 // ── 顶层：首次安装处理 ──
 
@@ -11,56 +13,123 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
 
   // 确保 alarm 存在（按用户设置的星期和时间排程）
-  const settings = await storage.getSettings();
-  await scheduleNextCheck(settings);
+  await scheduleNextCheck();
+  await storage.prunePublicationHistory();
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  await scheduleNextCheck();
+  await storage.prunePublicationHistory();
+  await drainCheckQueue();
 });
 
 // ── 顶层：alarm 触发 ──
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'check-watch-later') {
-    console.log('[稍后观看助手] 定时检查开始');
-    try {
-      await checkForNewVideos();
-    } catch (e) {
-      console.error('[稍后观看助手] 检查出错:', e);
-    }
-  }
+const CHECK_PREFIX = 'check-watch-later:';
+const RETRY_ALARM = 'check-watch-later-queue';
+let scheduleWrites = Promise.resolve();
+let queueWrites = Promise.resolve();
+let draining = false;
+
+chrome.alarms.onAlarm.addListener(async alarm => {
+  if (alarm.name === RETRY_ALARM) return drainCheckQueue();
+  const id = alarm.name === 'check-watch-later' ? 'default'
+    : alarm.name.startsWith(CHECK_PREFIX) ? alarm.name.slice(CHECK_PREFIX.length) : null;
+  if (!id) return;
+  const { checkers } = await storage.getSettings();
+  const checker = checkers.find(item => item.id === id && item.enabled);
+  if (!checker) return;
+  // 在长任务前安排下次运行，同一时间的多个检查器进入持久化队列。
+  await scheduleOne(checker);
+  await updateQueue(queue => { if (!queue.includes(id)) queue.push(id); });
+  await chrome.alarms.create(RETRY_ALARM, { when: Date.now() + 60000, periodInMinutes: 1 });
+  return drainCheckQueue();
 });
 
-// ── 排程工具 ──
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-function calculateNextCheckTime(schedule) {
-  if (!schedule || Object.keys(schedule).length === 0) return null;
-
-  const now = new Date();
-
-  for (let offset = 0; offset < 7; offset++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + offset);
-    const day = d.getDay();
-    const time = schedule[day];
-    if (time) {
-      const [h, m] = String(time).split(':').map(Number);
-      d.setHours(h, m, 0, 0);
-      if (d > now) {
-        return d.getTime();
-      }
-    }
-  }
-  return null;
+async function scheduleOne(checker) {
+  const name = CHECK_PREFIX + checker.id;
+  await chrome.alarms.clear(name);
+  const when = checker.enabled && calculateNextCheckTime(checker.schedule);
+  if (when) await chrome.alarms.create(name, { when });
 }
 
-async function scheduleNextCheck(settings) {
-  const nextTime = calculateNextCheckTime(settings.schedule);
-  await chrome.alarms.clear('check-watch-later');
-  if (nextTime) {
-    chrome.alarms.create('check-watch-later', {
-      when: nextTime,
-      periodInMinutes: Math.round(WEEK_MS / 60000)
-    });
+function scheduleNextCheck() {
+  const pending = scheduleWrites.then(async () => {
+    const { checkers } = await storage.getSettings();
+    const alarms = await chrome.alarms.getAll();
+    for (const alarm of alarms) {
+      if (alarm.name === 'check-watch-later' || alarm.name.startsWith(CHECK_PREFIX)) await chrome.alarms.clear(alarm.name);
+    }
+    for (const checker of checkers) await scheduleOne(checker);
+  });
+  scheduleWrites = pending.catch(() => {});
+  return pending;
+}
+
+function updateQueue(update) {
+  const pending = queueWrites.then(async () => {
+    const data = await chrome.storage.local.get('_pendingCheckers');
+    const queue = data._pendingCheckers || [];
+    update(queue);
+    await chrome.storage.local.set({ _pendingCheckers: queue });
+    return queue;
+  });
+  queueWrites = pending.catch(() => {});
+  return pending;
+}
+
+async function drainCheckQueue() {
+  if (draining) return;
+  draining = true;
+  try {
+    while (true) {
+      const queue = await updateQueue(() => {});
+      if (!queue.length) { await chrome.alarms.clear(RETRY_ALARM); return; }
+      if (_checkRunning || _metaRefreshing || _configImporting) {
+        await chrome.alarms.create(RETRY_ALARM, { when: Date.now() + 60000, periodInMinutes: 1 });
+        return;
+      }
+      const { checkers } = await storage.getSettings();
+      const checker = checkers.find(item => item.id === queue[0] && item.enabled);
+      // 获取设置期间手动检查可能开始；重新检查互斥条件。
+      if (_checkRunning || _metaRefreshing || _configImporting) continue;
+      if (checker) {
+        try { await runCheck(checker); }
+        catch (error) { console.error('[检查器]', checker.name, error); }
+      }
+      await updateQueue(items => { const index = items.indexOf(queue[0]); if (index >= 0) items.splice(index, 1); });
+    }
+  } finally { draining = false; }
+}
+
+// 防止重复触发全量元数据刷新
+let _metaRefreshing = false;
+// 检查是否进行中（与元数据刷新互斥，避免并发请求B站）
+let _checkRunning = false;
+let _configImporting = false;
+let _activeConfigWrites = 0;
+const CONFIG_WRITES = new Set(['saveSettings', 'saveChecker', 'deleteChecker', 'addCreator', 'removeCreator', 'importTrackingList', 'importFollowList']);
+// _metaProgress 的延迟清理定时器句柄（二次刷新前清除旧定时器，防止误删新进度）
+let _metaProgressTimeout = null;
+let _checkProgressTimeout = null;
+
+async function runCheck(checker = null) {
+  _checkRunning = true;
+  if (_checkProgressTimeout) clearTimeout(_checkProgressTimeout);
+  try {
+    await chrome.storage.local.remove('_checkCancelled');
+    await chrome.storage.local.set({ _checkProgress: { type: 'progress', current: 0, total: 1 } });
+    const report = await checkForNewVideos(progress => {
+      chrome.storage.local.set({ _checkProgress: { ...progress, checkerName: checker?.name } });
+    }, checker);
+    await chrome.storage.local.set({ _checkProgress: { type: 'complete', report } });
+    return report;
+  } catch (e) {
+    await chrome.storage.local.set({ _checkProgress: { type: 'complete', report: { status: 'error' } } });
+    throw e;
+  } finally {
+    _checkRunning = false;
+    _checkProgressTimeout = setTimeout(() => chrome.storage.local.remove('_checkProgress'), 30000);
   }
 }
 
@@ -75,7 +144,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleMessage(msg) {
+  if (_configImporting) return { success: false, reason: '配置导入中，请稍后再操作' };
+  if (msg.type === 'importConfiguration') {
+    if (_checkRunning || _metaRefreshing || draining || _activeConfigWrites) return { success: false, reason: '请等待当前检查、刷新或保存完成后再导入配置' };
+    _configImporting = true;
+    try {
+      const result = await storage.restoreConfiguration(msg.backup);
+      await updateQueue(queue => { queue.length = 0; });
+      await scheduleNextCheck();
+      return { success: true, ...result };
+    } finally { _configImporting = false; }
+  }
+  const writing = CONFIG_WRITES.has(msg.type);
+  if (writing) _activeConfigWrites++;
+  try { return await routeMessage(msg); }
+  finally { if (writing) _activeConfigWrites--; }
+}
+
+async function routeMessage(msg) {
   switch (msg.type) {
+    case 'exportConfiguration': return { success: true, backup: await storage.exportConfiguration() };
     case 'getStatus': {
       const cookies = await api.getCookies();
       const stats = await storage.getStats();
@@ -93,15 +181,24 @@ async function handleMessage(msg) {
     }
 
     case 'triggerCheck': {
-      const report = await checkForNewVideos((progress) => {
-        chrome.storage.local.set({ _checkProgress: progress });
-      });
-      // 保持进度结果 30 秒供 popup 读取，不立即清除
-      await chrome.storage.local.set({ _checkProgress: { type: 'complete', report } });
-      setTimeout(() => {
-        chrome.storage.local.remove('_checkProgress');
-      }, 30000);
-      return report;
+      if (_metaRefreshing) {
+        return { success: false, reason: '数据刷新进行中，请稍后再检查' };
+      }
+      if (_checkRunning) {
+        return { success: false, reason: '检查正在进行中' };
+      }
+      return runCheck();
+    }
+
+    case 'saveChecker': {
+      const checker = await storage.saveChecker(msg.checker);
+      await scheduleNextCheck();
+      return { success: true, checker };
+    }
+    case 'deleteChecker': {
+      await storage.deleteChecker(msg.id);
+      await scheduleNextCheck();
+      return { success: true };
     }
 
     case 'cancelCheck': {
@@ -111,16 +208,12 @@ async function handleMessage(msg) {
     }
 
     case 'getTrackingList': {
+      await storage.prunePublicationHistory();
       return await storage.getTrackingList();
     }
 
     case 'saveSettings': {
       await storage.saveSettings(msg.settings);
-      // 如果修改了排程设置，重新计算下次检查时间
-      if (msg.settings.schedule) {
-        const settings = await storage.getSettings();
-        await scheduleNextCheck(settings);
-      }
       return { success: true };
     }
 
@@ -144,7 +237,8 @@ async function handleMessage(msg) {
         const displayName = name || info.name || `UP主_${mid}`;
         await storage.addToTrackingList(mid, {
           name: displayName,
-          face: face || info.face || ''
+          face: face || info.face || '',
+          fans: info.fans ?? null
         });
         logs.push(`已添加到追踪名单: ${displayName}`);
         return { success: true, name: displayName, logs };
@@ -184,6 +278,38 @@ async function handleMessage(msg) {
     case 'getImportProgress': {
       const { _importProgress } = await chrome.storage.local.get('_importProgress');
       return _importProgress || null;
+    }
+
+    case 'refreshCreatorMeta': {
+      // 全量刷新追踪名单的粉丝数/更新时间元数据
+      if (_metaRefreshing) {
+        return { success: false, reason: '数据刷新已在进行中' };
+      }
+      if (_checkRunning) {
+        return { success: false, reason: '检查正在进行中，请稍后再刷新' };
+      }
+      _metaRefreshing = true;
+      // 清除上一次刷新的延迟清理定时器，避免误删新进度
+      if (_metaProgressTimeout) clearTimeout(_metaProgressTimeout);
+      try {
+        const report = await refreshCreatorMeta((progress) => {
+          chrome.storage.local.set({ _metaProgress: progress });
+        });
+        // 保持进度结果 30 秒供 popup 读取，不立即清除
+        await chrome.storage.local.set({ _metaProgress: { type: 'complete', report } });
+        _metaProgressTimeout = setTimeout(() => {
+          chrome.storage.local.remove('_metaProgress');
+          _metaProgressTimeout = null;
+        }, 30000);
+        return report;
+      } finally {
+        _metaRefreshing = false;
+      }
+    }
+
+    case 'getMetaProgress': {
+      const { _metaProgress } = await chrome.storage.local.get('_metaProgress');
+      return _metaProgress || null;
     }
 
     case 'exportTrackingList': {

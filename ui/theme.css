@@ -1,0 +1,70 @@
+/* 弹窗和管理页共用主题，随系统配色实时切换，原生表单控件同步适配。 */
+:root {
+  color-scheme: light dark;
+  /* B站网页使用系统字体；Windows 优先微软雅黑，避免本机 Helvetica 替代字体干扰中文回退。 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, 'Hiragino Sans GB', sans-serif;
+  --page-bg: #f6f7f8;
+  --surface: #ffffff;
+  --surface-soft: #f6f7f8;
+  --input-bg: #f6f7f8;
+  --surface-hover: #f1f2f3;
+  --text: #18191c;
+  --muted: #61666d;
+  --hint: #797f87;
+  --placeholder: #9499a0;
+  --border: #e3e5e7;
+  --divider: #f1f2f3;
+  --accent: #ff6699;
+  --accent-hover: #ff8cb0;
+  --accent-active: #e84b85;
+  --on-accent: #3f0723;
+  --accent-soft: #ffecf1;
+  --disabled-bg: #ffb3ca;
+  --brand-blue: #00aeec;
+  --info: #00699d;
+  --info-soft: #dff6fd;
+  --info-hover: #bfedfa;
+  --info-border: #80daf6;
+  --success: #237736;
+  --success-soft: #e6f7e6;
+  --danger: #c02b3a;
+  --danger-soft: #fff0f0;
+  --scrollbar: #c9ccd0;
+  --overlay: rgb(0 0 0 / 40%);
+}
+
+body, button, input, select, textarea { font-family: var(--font-family); }
+[hidden] { display: none !important; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: #141416;
+    --surface: #1e1f22;
+    --surface-soft: #292a2e;
+    --input-bg: #292a2e;
+    --surface-hover: #34353b;
+    --text: #f1f2f3;
+    --muted: #c9ccd0;
+    --hint: #aeb3b9;
+    --placeholder: #9499a0;
+    --border: #414248;
+    --divider: #303136;
+    --accent: #ff8cb0;
+    --accent-hover: #ffb3ca;
+    --accent-active: #ff6699;
+    --on-accent: #29111b;
+    --accent-soft: #35232e;
+    --disabled-bg: #674153;
+    --brand-blue: #40c5f1;
+    --info: #80daf6;
+    --info-soft: #19313c;
+    --info-hover: #234451;
+    --info-border: #326074;
+    --success: #8cd9a0;
+    --success-soft: #213a2b;
+    --danger: #ff9ba5;
+    --danger-soft: #422831;
+    --scrollbar: #61666d;
+    --overlay: rgb(0 0 0 / 65%);
+  }
+}

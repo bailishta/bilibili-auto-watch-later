@@ -3,17 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>稍后观看助手</title>
+  <link rel="icon" href="../icons/icon48.png">
+  <link rel="stylesheet" href="../ui/theme.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="container">
-    <!-- 头部 -->
-    <div class="header">
-      <span class="title">稍后观看助手</span>
+  <main class="container">
+    <header class="header">
+      <div class="heading">
+        <span class="title">稍后观看助手</span>
+      </div>
       <span id="status-badge" class="badge">加载中</span>
-    </div>
-
-    <!-- 统计区 -->
+    </header>
     <div class="stats-row">
       <div class="stat-item">
         <span class="stat-val" id="stat-tracking">--</span>
@@ -24,110 +26,16 @@
         <span class="stat-label">本次新发现</span>
       </div>
     </div>
-
-    <!-- 操作按钮 -->
-    <button class="btn btn-primary" id="btn-check">立即检查</button>
+    <button class="btn-primary" id="btn-check">立即检查</button>
     <div class="action-row">
-      <button class="btn btn-link" id="btn-open-wl">打开稍后观看 →</button>
-      <button class="btn btn-link" id="btn-reimport">重新导入关注</button>
+      <button class="btn-link" id="btn-open-wl">打开稍后观看 →</button>
+      <button class="btn-link" id="btn-reimport">重新导入关注</button>
     </div>
-
-    <!-- 新视频时间窗口 -->
-    <div class="setting-row">
-      <span class="setting-label">新视频判定</span>
-      <select id="select-window" class="setting-select">
-        <option value="12">12小时内</option>
-        <option value="24" selected>1天内</option>
-        <option value="48">2天内</option>
-        <option value="72">3天内</option>
-        <option value="168">7天内</option>
-      </select>
-    </div>
-    <div class="setting-row-vert">
-      <span class="setting-label">自动检查排程</span>
-      <div class="schedule-list" id="schedule-list">
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="0" checked>周日</label>
-          <input type="time" class="time-input schedule-time" data-day="0" value="18:00">
-        </div>
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="1">周一</label>
-          <input type="time" class="time-input schedule-time" data-day="1" value="18:00">
-        </div>
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="2">周二</label>
-          <input type="time" class="time-input schedule-time" data-day="2" value="18:00">
-        </div>
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="3">周三</label>
-          <input type="time" class="time-input schedule-time" data-day="3" value="18:00">
-        </div>
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="4">周四</label>
-          <input type="time" class="time-input schedule-time" data-day="4" value="18:00">
-        </div>
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="5">周五</label>
-          <input type="time" class="time-input schedule-time" data-day="5" value="18:00">
-        </div>
-        <div class="schedule-row">
-          <label class="weekday-label"><input type="checkbox" value="6" checked>周六</label>
-          <input type="time" class="time-input schedule-time" data-day="6" value="18:00">
-        </div>
-      </div>
-    </div>
-
-    <!-- 检查进度 -->
-    <div id="check-progress" class="progress-bar" style="display:none">
-      <div class="progress-fill" id="progress-fill"></div>
-      <div class="progress-row">
-        <span id="progress-label">检查中...</span>
-        <button class="btn btn-cancel" id="btn-cancel-check">取消</button>
-      </div>
-    </div>
-
-    <!-- 追踪名单 -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">追踪名单</span>
-        <div class="section-header-actions">
-          <button class="btn btn-sm" id="btn-export" title="导出名单为JSON文件">导出</button>
-          <button class="btn btn-sm" id="btn-import" title="从JSON文件导入名单">导入</button>
-          <button class="btn btn-sm" id="btn-add">+ 添加UP主</button>
-        </div>
-      </div>
-      <input type="file" id="import-file-input" accept=".json" style="display:none">
-      <input type="text" class="search-input" id="search-tracking" placeholder="搜索UP主名称或UID...">
-      <div id="tracking-list" class="scroll-list">
-        <div class="empty-hint">暂无追踪UP主</div>
-      </div>
-    </div>
-
-    <!-- 调试日志 -->
-    <div id="debug-section" class="debug-section" style="display:none">
-      <div class="debug-header" id="debug-toggle">📋 调试日志 ▼</div>
-      <div id="debug-content" class="debug-content"></div>
-    </div>
-
-    <!-- 底部 -->
-    <div class="footer">
-      <span id="last-check">上次检查：--</span>
-    </div>
-
-    <!-- 添加UP主弹窗 -->
-    <div id="add-modal" class="modal" style="display:none">
-      <div class="modal-content">
-        <h3>添加UP主到追踪名单</h3>
-        <input type="text" id="add-input" placeholder="输入UP主的UID或B站主页链接">
-        <div id="add-error" class="error-msg" style="display:none"></div>
-        <div class="modal-btns">
-          <button class="btn btn-secondary" id="btn-cancel">取消</button>
-          <button class="btn btn-primary" id="btn-confirm-add">确认添加</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
+    <button id="btn-manage" class="manage-entry" title="在新标签页打开管理中心" aria-label="打开详细管理中心">
+      <span class="manage-copy"><span class="manage-title">详细管理</span><span class="manage-description">追踪名单 · 自动排程 · 导入导出</span></span>
+    </button>
+    <p id="feedback" role="status" hidden></p>
+  </main>
   <script src="popup.js" type="module"></script>
 </body>
 </html>

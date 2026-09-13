@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "B站稍后观看助手",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "description": "自动将指定UP主的新视频添加到B站「稍后观看」列表",
   "permissions": [
     "storage",
@@ -37,5 +37,9 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "manage/manage.html",
+    "open_in_tab": true
   }
 }

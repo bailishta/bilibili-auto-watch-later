@@ -1,5 +1,6 @@
 import * as storage from './storage.js';
 import * as api from './api.js';
+import { collectCreatorMeta } from './meta.js';
 
 const DELETED_NAMES = ['已注销用户', '账号已注销', '已注销'];
 const REQUEST_DELAY = 200; // ms，每批UP主之间的间隔
@@ -20,7 +21,7 @@ function isDeletedAccount(name) {
 
 // ── 检测追踪名单中UP主的新视频 ──
 
-export async function checkForNewVideos(sendProgress) {
+export async function checkForNewVideos(sendProgress, checker = null) {
   const report = { newVideos: [], skipped: [], added: 0, errors: 0 };
   const cookies = await api.getCookies();
   if (!cookies.SESSDATA) {
@@ -30,7 +31,7 @@ export async function checkForNewVideos(sendProgress) {
   }
 
   const trackingList = await storage.getTrackingList();
-  const mids = Object.keys(trackingList);
+  const mids = Object.keys(trackingList).filter(mid => !checker || checker.scope !== 'selected' || checker.mids.includes(mid));
   if (mids.length === 0) {
     report.status = 'empty_list';
     sendProgress?.({ type: 'complete', report });
@@ -38,7 +39,7 @@ export async function checkForNewVideos(sendProgress) {
   }
 
   const settings = await storage.getSettings();
-  const windowMs = getNewVideoWindowMs(settings.newVideoWindowHours);
+  const windowMs = getNewVideoWindowMs(checker?.newVideoWindowHours ?? settings.newVideoWindowHours);
   const cutOff = Math.floor((Date.now() - windowMs) / 1000);
 
   let watchedBvids = new Set();
@@ -64,11 +65,12 @@ export async function checkForNewVideos(sendProgress) {
         checked++;
         sendProgress?.({ type: 'progress', current: checked, total: mids.length, name: upName });
 
-        const result = await api.getUserVideos(mid);
+        const result = await api.getUserVideos(mid).catch(() => ({ error: 'exception' }));
+        const creatorMeta = await collectCreatorMeta(mid, result.error ? undefined : result.videos);
         if (result.error) {
           report.skipped.push({ mid, name: upName, reason: result.error });
           report.errors++;
-          return { mid, upName, aidsToAdd: [], newVids: [] };
+          return { mid, upName, aidsToAdd: [], newVids: [], creatorMeta };
         }
 
         const newVids = [];
@@ -80,7 +82,7 @@ export async function checkForNewVideos(sendProgress) {
           aidsToAdd.push(v.aid);
           newVids.push(v);
         }
-        return { mid, upName, aidsToAdd, newVids };
+        return { mid, upName, aidsToAdd, newVids, creatorMeta };
       } catch {
         report.skipped.push({ mid, name: upName, reason: 'exception' });
         report.errors++;
@@ -89,6 +91,16 @@ export async function checkForNewVideos(sendProgress) {
     });
 
     const batchResults = await Promise.all(batchPromises);
+
+    // 自动/手动检查均持久化排序数据，切换排序无需请求接口。
+    const metaUpdates = batchResults
+      .filter(r => r.creatorMeta?.hasData)
+      .map(r => r.creatorMeta);
+    try {
+      await storage.updateCreatorMetaBatch(metaUpdates);
+    } catch (e) {
+      console.warn('[checker] 写入排序元数据失败:', e.message);
+    }
 
     // 阶段2：合并整批待添加视频，一次往返完成
     const allAids = [];

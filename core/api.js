@@ -435,6 +435,7 @@ export async function getUserVideos(mid, page = 1, ps = 10) {
 }
 
 // 获取UP主基本信息（用card API，无需WBI签名，更可靠）
+// 返回 fans 粉丝数（用于名单排序），取不到时为 null
 export async function getUpInfo(mid) {
   try {
     const data = await biliFetch(
@@ -442,7 +443,13 @@ export async function getUpInfo(mid) {
     );
     if (data.code === 0 && data.data?.card) {
       const card = data.data.card;
-      return { mid: card.mid, name: card.name, face: card.face, exists: true };
+      return {
+        mid: card.mid,
+        name: card.name,
+        face: card.face,
+        fans: card.fans ?? data.data.follower ?? null,
+        exists: true
+      };
     }
     // card API失败，尝试 WBI 签名的 wbi/acc/info
     const signed = await signParams({ mid: String(mid) });
@@ -452,19 +459,21 @@ export async function getUpInfo(mid) {
         `https://api.bilibili.com/x/space/wbi/acc/info?${query2}`
       );
       if (data2.code === 0 && data2.data) {
+        // 注：acc/info 响应不含 fans 字段，此回退路径粉丝数为 null
         return {
           mid: data2.data.mid || mid,
           name: data2.data.name || '未知UP主',
           face: data2.data.face || '',
+          fans: null,
           exists: true
         };
       }
     }
     console.warn('[api] getUpInfo 两个API都失败，使用占位名');
-    return { mid, name: `UP主_${mid}`, face: '', exists: false };
+    return { mid, name: `UP主_${mid}`, face: '', fans: null, exists: false };
   } catch (e) {
     console.error('[api] getUpInfo 异常:', e.message);
-    return { mid, name: `UP主_${mid}`, face: '', exists: false };
+    return { mid, name: `UP主_${mid}`, face: '', fans: null, exists: false };
   }
 }
 

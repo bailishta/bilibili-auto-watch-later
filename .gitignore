@@ -5,3 +5,4 @@ android-app/CLAUDE.md
 *.crx
 *.pem
 .DS_Store
+.playwright-cli/
