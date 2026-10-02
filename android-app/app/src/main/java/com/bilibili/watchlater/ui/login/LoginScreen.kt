@@ -44,7 +44,7 @@ fun LoginScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.login_title)) },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Pink
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
                 )
             )
         }

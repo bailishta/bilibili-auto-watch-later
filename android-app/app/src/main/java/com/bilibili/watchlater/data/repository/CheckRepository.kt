@@ -5,6 +5,7 @@ import com.bilibili.watchlater.data.local.dao.TrackedVideoDao
 import com.bilibili.watchlater.data.local.entity.CreatorEntity
 import com.bilibili.watchlater.data.local.entity.TrackedVideoEntity
 import com.bilibili.watchlater.data.remote.BiliApiService
+import com.bilibili.watchlater.data.remote.BiliVideo
 import com.bilibili.watchlater.util.AppLogger
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -30,7 +31,8 @@ class CheckRepository(
     private val api: BiliApiService,
     private val creatorDao: CreatorDao,
     private val videoDao: TrackedVideoDao,
-    private val settingsRepo: SettingsRepository
+    private val settingsRepo: SettingsRepository,
+    private val activityRepo: ActivityRepository
 ) {
     companion object {
         private const val CONCURRENCY = 6
@@ -78,12 +80,7 @@ class CheckRepository(
 
         for (i in creators.indices step CONCURRENCY) {
             if (cancelled) {
-                return@coroutineScope CheckReport(
-                    newVideos = newVideoList,
-                    added = addedCount,
-                    errors = errorCount,
-                    status = "cancelled"
-                )
+                return@coroutineScope finishCheck(addedCount, newVideoList, errorCount, "cancelled")
             }
 
             val batch = creators.subList(i, minOf(i + CONCURRENCY, creators.size))
@@ -96,6 +93,8 @@ class CheckRepository(
 
                     try {
                         val result = api.getUserVideos(creator.mid)
+                        // 手动检查同时保存粉丝数、最后发布时间与更新分布记录。
+                        updateCreatorMeta(creator.mid, if (result.error == null) result.videos else emptyList())
                         if (result.error != null) {
                             return@async BatchCheckResult(creator.mid, creator.name, emptyList(), emptyList(), result.error)
                         }
@@ -126,6 +125,8 @@ class CheckRepository(
                     }
                 }
             }.awaitAll()
+
+            if (cancelled) return@coroutineScope finishCheck(addedCount, newVideoList, errorCount, "cancelled")
 
             val allAids = mutableListOf<Long>()
             val allNewVids = mutableListOf<NewVideo>()
@@ -164,10 +165,10 @@ class CheckRepository(
             }
         }
 
-        finishCheck(addedCount, newVideoList, errorCount)
+        finishCheck(addedCount, newVideoList, errorCount, if (cancelled) "cancelled" else "ok")
     }
 
-    private suspend fun finishCheck(addedCount: Int, newVideoList: List<NewVideo>, errorCount: Int): CheckReport {
+    private suspend fun finishCheck(addedCount: Int, newVideoList: List<NewVideo>, errorCount: Int, status: String = "ok"): CheckReport {
         val count = videoDao.count()
         if (count > MAX_TRACKED_VIDEOS) {
             videoDao.deleteOldest(count - MAX_TRACKED_VIDEOS)
@@ -183,8 +184,28 @@ class CheckRepository(
             newVideos = newVideoList,
             added = addedCount,
             errors = errorCount,
-            status = "ok"
+            status = status
         )
+    }
+
+    // 粉丝数查询失败不影响新视频检查；缺失值保留数据库里的旧数据。
+    private suspend fun updateCreatorMeta(mid: Long, videos: List<BiliVideo>) {
+        val fans = try {
+            api.getUpInfo(mid).fans
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogger.w(TAG, "获取UP主${mid}粉丝数失败", e)
+            null
+        }
+        if (fans == null && videos.isEmpty()) return
+        try {
+            activityRepo.recordMeta(mid, fans, videos)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogger.w(TAG, "写回UP主${mid}排序数据失败", e)
+        }
     }
 
     suspend fun importFollowList(uid: Long, onProgress: (page: Int, imported: Int, total: Int) -> Unit): ImportResult {
@@ -240,6 +261,7 @@ class CheckRepository(
         val newVids: List<NewVideo>,
         val error: String?
     )
+
 }
 
 data class ImportResult(

@@ -12,8 +12,8 @@ class CreatorRepository(private val dao: CreatorDao) {
 
     suspend fun exists(mid: Long): Boolean = dao.exists(mid)
 
-    suspend fun add(mid: Long, name: String, face: String = "") {
-        dao.insert(CreatorEntity(mid = mid, name = name, face = face))
+    suspend fun add(mid: Long, name: String, face: String = "", fans: Long? = null) {
+        dao.insert(CreatorEntity(mid = mid, name = name, face = face, fans = fans))
     }
 
     suspend fun remove(mid: Long) {

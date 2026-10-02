@@ -138,7 +138,9 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
                 return UpInfo(
                     mid = card.optLong("mid", mid),
                     name = card.optString("name", "UP主_$mid"),
-                    face = card.optString("face", "")
+                    face = card.optString("face", ""),
+                    fans = card.optLong("fans", -1L).takeIf { it >= 0 }
+                        ?: cardData.optJSONObject("data")?.optLong("follower", -1L)?.takeIf { it >= 0 }
                 )
             }
         }
@@ -151,6 +153,7 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
             if (data2.optInt("code") == 0) {
                 val d = data2.optJSONObject("data")
                 if (d != null) {
+                    // 注：acc/info 响应不含 fans 字段，此回退路径粉丝数为 null
                     return UpInfo(
                         mid = d.optLong("mid", mid),
                         name = d.optString("name", "UP主_$mid"),
@@ -318,7 +321,8 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
 data class UpInfo(
     val mid: Long,
     val name: String,
-    val face: String
+    val face: String,
+    val fans: Long? = null
 )
 
 data class BiliVideo(

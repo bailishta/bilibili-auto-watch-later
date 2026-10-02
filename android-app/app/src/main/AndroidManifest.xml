@@ -3,6 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Android 11+ 下仅查询 B站的版本和启动入口。 -->
+    <queries>
+        <package android:name="tv.danmaku.bili" />
+    </queries>
+
     <application
         android:name=".BiliApp"
         android:allowBackup="false"

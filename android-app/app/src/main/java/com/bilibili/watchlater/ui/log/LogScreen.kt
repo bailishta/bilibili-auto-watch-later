@@ -76,7 +76,7 @@ fun LogScreen(onBack: () -> Unit) {
                         Icon(Icons.Default.Delete, contentDescription = "清空日志")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Pink)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgWhite)
             )
         }
     ) { padding ->
@@ -184,6 +184,7 @@ private fun LogItem(entry: AppLogger.Entry) {
     }
 }
 
+@Composable
 private fun levelColor(level: AppLogger.Level): Color = when (level) {
     AppLogger.Level.DEBUG -> TextHint
     AppLogger.Level.INFO -> TextPrimary

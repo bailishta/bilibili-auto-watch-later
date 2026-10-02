@@ -28,10 +28,14 @@ class ImportViewModel(
     private val _uiState = MutableStateFlow(ImportUiState())
     val uiState: StateFlow<ImportUiState> = _uiState.asStateFlow()
 
-    fun startImport(uid: Long) {
-        viewModelScope.launch {
-            _uiState.value = ImportUiState(isImporting = true, progressText = "正在获取关注列表...")
+    fun reset() {
+        if (!_uiState.value.isImporting) _uiState.value = ImportUiState()
+    }
 
+    fun startImport(uid: Long) {
+        if (_uiState.value.isImporting) return
+        _uiState.value = ImportUiState(isImporting = true, progressText = "正在获取关注列表...")
+        viewModelScope.launch {
             try {
                 val result = checkRepo.importFollowList(uid) { page, imported, total ->
                     _uiState.value = _uiState.value.copy(

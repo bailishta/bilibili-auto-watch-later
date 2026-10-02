@@ -7,6 +7,8 @@ import com.bilibili.watchlater.data.remote.CookieProvider
 import com.bilibili.watchlater.data.repository.CheckRepository
 import com.bilibili.watchlater.data.repository.CreatorRepository
 import com.bilibili.watchlater.data.repository.SettingsRepository
+import com.bilibili.watchlater.data.repository.ActivityRepository
+import com.bilibili.watchlater.data.repository.BackupRepository
 
 class BiliApp : Application() {
 
@@ -22,6 +24,10 @@ class BiliApp : Application() {
         private set
     lateinit var checkRepo: CheckRepository
         private set
+    lateinit var activityRepo: ActivityRepository
+        private set
+    lateinit var backupRepo: BackupRepository
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -32,7 +38,9 @@ class BiliApp : Application() {
         api = BiliApiService(cookieProvider)
         creatorRepo = CreatorRepository(database.creatorDao())
         settingsRepo = SettingsRepository(this)
-        checkRepo = CheckRepository(api, database.creatorDao(), database.trackedVideoDao(), settingsRepo)
+        activityRepo = ActivityRepository(database, settingsRepo)
+        backupRepo = BackupRepository(database, settingsRepo)
+        checkRepo = CheckRepository(api, database.creatorDao(), database.trackedVideoDao(), settingsRepo, activityRepo)
     }
 
     companion object {

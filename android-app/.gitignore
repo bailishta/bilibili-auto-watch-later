@@ -10,3 +10,6 @@
 local.properties
 /app/build
 /app/release
+*.jks
+*.keystore
+/signing.properties

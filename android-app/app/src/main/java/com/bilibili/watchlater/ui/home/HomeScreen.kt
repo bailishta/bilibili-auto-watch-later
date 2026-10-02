@@ -1,544 +1,124 @@
 package com.bilibili.watchlater.ui.home
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import coil.compose.AsyncImage
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import com.bilibili.watchlater.R
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bilibili.watchlater.ui.components.AddCreatorDialog
-import com.bilibili.watchlater.ui.theme.BgGray
-import com.bilibili.watchlater.ui.theme.BgWhite
-import com.bilibili.watchlater.ui.theme.LocalDeviceScale
-import com.bilibili.watchlater.ui.theme.Pink
-import com.bilibili.watchlater.ui.theme.PinkBg
-import com.bilibili.watchlater.ui.theme.TextHint
-import com.bilibili.watchlater.ui.theme.TextPrimary
-import com.bilibili.watchlater.ui.theme.TextSecondary
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.bilibili.watchlater.util.BiliAppLauncher
+import java.time.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
-fun HomeScreen(
-    viewModel: HomeViewModel,
-    onLogout: () -> Unit,
-    onOpenLog: () -> Unit = {}
-) {
-    val scale = LocalDeviceScale.current
+fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> Unit = {}, userId: Long = 0) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
-    val creators by viewModel.creators.collectAsState()
-
-    // 文件选择器（导入）
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { viewModel.importTrackingList(it, context) }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val creators by viewModel.creators.collectAsStateWithLifecycle()
+    val records by viewModel.publications.collectAsStateWithLifecycle()
+    var page by rememberSaveable { mutableIntStateOf(0) }
+    val holder = rememberSaveableStateHolder()
+    val snackbar = remember { SnackbarHostState() }
+    val listImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { viewModel.importTrackingList(it, context) } }
+    val configImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { viewModel.prepareConfigurationImport(it, context) } }
+    val listExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let { viewModel.exportTrackingList(it, context) } }
+    val configExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let { viewModel.exportConfiguration(it, context) } }
+    val mimeTypes = arrayOf("application/json", "text/plain", "application/octet-stream")
+    val tabs = listOf("首页", "名单", "更新", "设置")
+    val icons = listOf(Icons.Default.Home, Icons.Default.People, Icons.Default.BarChart, Icons.Default.Settings)
+    fun openUrl(url: String) {
+        try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        catch (error: Exception) { viewModel.showMessage("无法打开链接，请安装可用的浏览器") }
     }
-
-    // 导出文件分享
-    LaunchedEffect(uiState.exportFile) {
-        uiState.exportFile?.let { file ->
-            try {
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    file
-                )
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(shareIntent, "导出追踪名单"))
-            } catch (e: Exception) {
-                android.util.Log.e("HomeScreen", "分享文件失败", e)
-            }
-            viewModel.clearExportFile()
+    fun openWatchLater() {
+        BiliAppLauncher.openWatchLater(context)?.let(viewModel::showMessage)
+    }
+    LaunchedEffect(state.message) {
+        state.message?.let { message ->
+            snackbar.showSnackbar(message)
+            if (viewModel.uiState.value.message == message) viewModel.dismissMessage()
         }
     }
+    BackHandler(page != 0) { page = 0 }
 
-    Scaffold(
+    Scaffold(containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Pink),
-                actions = {
-                    Text(
-                        text = "日志",
-                        color = BgWhite,
-                        fontSize = (13 * scale.fontScale).sp,
-                        modifier = Modifier
-                            .clickable { onOpenLog() }
-                            .padding(horizontal = 8.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.logout),
-                        color = BgWhite,
-                        fontSize = (13 * scale.fontScale).sp,
-                        modifier = Modifier
-                            .clickable { onLogout() }
-                            .padding(end = (16 * scale.spacingScale).dp)
-                    )
+            TopAppBar(title = { Text(if (page == 0) "稍后观看助手" else tabs[page], fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                actions = { Text("已登录", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 18.dp)) })
+        },
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+                tabs.forEachIndexed { index, label ->
+                    NavigationBarItem(selected = page == index, onClick = { page = index }, label = { Text(label) },
+                        icon = { Icon(icons[index], contentDescription = null) },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer))
                 }
-            )
-        }
+            }
+        }, snackbarHost = { SnackbarHost(snackbar) }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(BgGray)
-        ) {
-            // 统计卡片
-            item {
-                StatsCard(uiState)
-            }
-
-            // 手动检查按钮 + 新视频窗口
-            item {
-                CheckSection(uiState, viewModel)
-            }
-
-            // 检查进度
-            if (uiState.isChecking) {
-                item {
-                    ProgressSection(uiState, viewModel::cancelCheck)
-                }
-            }
-
-            // 追踪名单标题
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = (16 * scale.spacingScale).dp,
-                            vertical = (12 * scale.spacingScale).dp
-                        )
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${stringResource(R.string.tracking_list)} (${creators.size})",
-                            fontSize = (16 * scale.fontScale).sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Button(
-                            onClick = { viewModel.showAddDialog() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Pink),
-                            contentPadding = ButtonDefaults.TextButtonContentPadding
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size((18 * scale.spacingScale).dp)
-                            )
-                            Spacer(modifier = Modifier.width((4 * scale.spacingScale).dp))
-                            Text(stringResource(R.string.add_creator), fontSize = (13 * scale.fontScale).sp)
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (state.isBusy) {
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (state.isChecking) (if (state.isCancelling) "正在取消…" else state.progressText) else state.busyLabel.orEmpty(),
+                                style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                            if (state.isChecking) TextButton(onClick = viewModel::cancelCheck, enabled = !state.isCancelling) { Text("取消") }
                         }
-                    }
-                    Spacer(modifier = Modifier.height((8 * scale.spacingScale).dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = { viewModel.exportTrackingList(context) }
-                        ) {
-                            Text("导出名单", fontSize = (13 * scale.fontScale).sp, color = Pink)
-                        }
-                        TextButton(
-                            onClick = { importLauncher.launch(arrayOf("application/json")) }
-                        ) {
-                            Text("导入名单", fontSize = (13 * scale.fontScale).sp, color = Pink)
-                        }
+                        if (state.isChecking) LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+                        else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                 }
             }
-
-            // 搜索框
-            item {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("搜索UP主名称或UID", fontSize = (13 * scale.fontScale).sp) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = TextHint)
-                    },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = (16 * scale.spacingScale).dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = BgWhite,
-                        unfocusedContainerColor = BgWhite,
-                        focusedBorderColor = Pink,
-                        unfocusedBorderColor = PinkBg
-                    ),
-                    shape = RoundedCornerShape((8 * scale.spacingScale).dp)
-                )
-            }
-
-            // 追踪名单列表（过滤后）
-            val q = uiState.searchQuery.trim().lowercase()
-            val filtered = if (q.isEmpty()) creators
-                else creators.filter { it.mid.toString().contains(q) || it.name.lowercase().contains(q) }
-            if (filtered.isEmpty()) {
-                item {
-                    Text(
-                        text = if (q.isNotEmpty()) "无匹配结果" else stringResource(R.string.no_creators),
-                        color = TextHint,
-                        fontSize = (14 * scale.fontScale).sp,
-                        modifier = Modifier.padding((16 * scale.spacingScale).dp)
-                    )
-                }
-            } else {
-                items(filtered, key = { it.mid }) { creator ->
-                    CreatorItem(creator, onRemove = { viewModel.removeCreator(creator.mid) })
-                }
-            }
-
-            // 底部
-            item {
-                Spacer(modifier = Modifier.height((16 * scale.spacingScale).dp))
-                if (uiState.lastCheck > 0) {
-                    val fmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault()) }
-                    Text(
-                        text = "${stringResource(R.string.last_check)}${fmt.format(Instant.ofEpochMilli(uiState.lastCheck))}",
-                        color = TextHint,
-                        fontSize = (12 * scale.fontScale).sp,
-                        modifier = Modifier.padding(
-                            horizontal = (16 * scale.spacingScale).dp,
-                            vertical = (8 * scale.spacingScale).dp
-                        )
-                    )
+            AnimatedContent(targetState = page, modifier = Modifier.weight(1f), label = "页面切换",
+                transitionSpec = {
+                    (fadeIn(tween(250, easing = FastOutSlowInEasing)) + slideInVertically(tween(250, easing = FastOutSlowInEasing)) { it / 30 })
+                        .togetherWith(fadeOut(tween(150)))
+                }) { selected ->
+                holder.SaveableStateProvider(selected) {
+                    when (selected) {
+                        0 -> DashboardScreen(state, viewModel::startCheck, ::openWatchLater, { page = 1 }, { page = 2 }, { page = 3 })
+                        1 -> CreatorListScreen(state, creators, viewModel, { listImport.launch(mimeTypes) },
+                            { listExport.launch("bilibili-tracking-list-${LocalDate.now()}.json") }, { openUrl("https://space.bilibili.com/$it") })
+                        2 -> ActivityScreen(creators, records, state.historyWeeks) { page = 3 }
+                        else -> SettingsScreen(state, viewModel, { configExport.launch("bilibili-configuration-android-${LocalDate.now()}.json") },
+                            { configImport.launch(mimeTypes) }, { viewModel.reimportFollows(userId) }, onLogout, onOpenLog)
+                    }
                 }
             }
         }
     }
-
-    // 添加UP主弹窗
-    if (uiState.addDialogVisible) {
-        AddCreatorDialog(
-            error = uiState.addError,
-            onConfirm = { viewModel.addCreator(it) },
-            onDismiss = { viewModel.hideAddDialog() }
-        )
-    }
-
-    // 导入/导出结果弹窗
-    uiState.importResult?.let { result ->
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissImportResult() },
-            title = {
-                Text(
-                    text = if (result.error != null) "操作失败" else "导入完成",
-                    fontSize = (16 * scale.fontScale).sp
-                )
-            },
+    if (state.addDialogVisible) AddCreatorDialog(error = state.addError, onConfirm = viewModel::addCreator, onDismiss = viewModel::hideAddDialog, busy = state.isBusy)
+    state.backupPreview?.let { preview ->
+        AlertDialog(onDismissRequest = viewModel::cancelConfigurationImport, title = { Text("恢复配置") },
             text = {
-                Text(
-                    text = result.error
-                        ?: "新增 ${result.added} 位UP主" + if (result.skipped > 0) "，跳过 ${result.skipped} 位（已存在）" else "",
-                    fontSize = (14 * scale.fontScale).sp
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.dismissImportResult() }) {
-                    Text("确定", fontSize = (14 * scale.fontScale).sp)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("${preview.creatorCount} 位 UP 主 · ${preview.recordCount} 条更新记录\n保留最近 ${preview.historyWeeks} 周")
+                    Text("将替换当前名单和设置，保留本机已处理视频及统计信息。", style = MaterialTheme.typography.bodySmall)
+                    if (preview.browserCheckerCount > 0) Text("此备份包含浏览器排程，安卓仅恢复名单和设置。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-        )
-    }
-}
-
-@Composable
-private fun StatsCard(uiState: HomeUiState) {
-    val scale = LocalDeviceScale.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding((16 * scale.spacingScale).dp),
-        colors = CardDefaults.cardColors(containerColor = BgWhite),
-        shape = RoundedCornerShape((12 * scale.spacingScale).dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding((20 * scale.spacingScale).dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatItem(value = "${uiState.trackingCount}", label = stringResource(R.string.stats_tracking))
-            StatItem(value = "${uiState.lastNewCount}", label = stringResource(R.string.stats_new))
-            StatItem(value = "${uiState.totalAdded}", label = stringResource(R.string.stats_total))
-        }
-    }
-}
-
-@Composable
-private fun StatItem(value: String, label: String) {
-    val scale = LocalDeviceScale.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            fontSize = (24 * scale.fontScale).sp,
-            fontWeight = FontWeight.Bold,
-            color = Pink
-        )
-        Spacer(modifier = Modifier.height((4 * scale.spacingScale).dp))
-        Text(
-            text = label,
-            fontSize = (12 * scale.fontScale).sp,
-            color = TextSecondary
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CheckSection(uiState: HomeUiState, viewModel: HomeViewModel) {
-    val scale = LocalDeviceScale.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = (16 * scale.spacingScale).dp),
-        colors = CardDefaults.cardColors(containerColor = BgWhite),
-        shape = RoundedCornerShape((12 * scale.spacingScale).dp)
-    ) {
-        Column(
-            modifier = Modifier.padding((16 * scale.spacingScale).dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                onClick = { viewModel.startCheck() },
-                enabled = !uiState.isChecking,
-                colors = ButtonDefaults.buttonColors(containerColor = Pink),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width((8 * scale.spacingScale).dp))
-                Text(if (uiState.isChecking) stringResource(R.string.checking) else stringResource(R.string.check_now))
-            }
-
-            Spacer(modifier = Modifier.height((12 * scale.spacingScale).dp))
-
-            // 新视频时间窗口选择
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.new_video_window),
-                    fontSize = (13 * scale.fontScale).sp,
-                    color = TextSecondary
-                )
-                var expanded by remember { mutableStateOf(false) }
-                val options = mapOf(
-                    12 to "12小时内",
-                    24 to "1天内",
-                    48 to "2天内",
-                    72 to "3天内",
-                    168 to "7天内"
-                )
-                Box {
-                    Text(
-                        text = options[uiState.newVideoWindowHours] ?: "1天内",
-                        fontSize = (13 * scale.fontScale).sp,
-                        color = Pink,
-                        modifier = Modifier
-                            .clickable { expanded = true }
-                            .padding(
-                                horizontal = (8 * scale.spacingScale).dp,
-                                vertical = (4 * scale.spacingScale).dp
-                            )
-                    )
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        options.forEach { (hours, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    viewModel.setNewVideoWindow(hours)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProgressSection(uiState: HomeUiState, onCancel: () -> Unit) {
-    val scale = LocalDeviceScale.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = (16 * scale.spacingScale).dp,
-                vertical = (8 * scale.spacingScale).dp
-            ),
-        colors = CardDefaults.cardColors(containerColor = BgWhite),
-        shape = RoundedCornerShape((12 * scale.spacingScale).dp)
-    ) {
-        Column(modifier = Modifier.padding((16 * scale.spacingScale).dp)) {
-            LinearProgressIndicator(
-                progress = { uiState.progress },
-                modifier = Modifier.fillMaxWidth(),
-                color = Pink,
-                trackColor = PinkBg
-            )
-            Spacer(modifier = Modifier.height((8 * scale.spacingScale).dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = uiState.progressText,
-                    fontSize = (13 * scale.fontScale).sp,
-                    color = TextSecondary
-                )
-                Button(
-                    onClick = onCancel,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
-                    contentPadding = ButtonDefaults.TextButtonContentPadding
-                ) {
-                    Text(stringResource(R.string.cancel), fontSize = (12 * scale.fontScale).sp)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CreatorItem(creator: CreatorUi, onRemove: () -> Unit) {
-    val scale = LocalDeviceScale.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(BgWhite)
-            .padding(
-                horizontal = (16 * scale.spacingScale).dp,
-                vertical = (10 * scale.spacingScale).dp
-            ),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size((40 * scale.spacingScale).dp)
-                .clip(CircleShape)
-                .background(PinkBg),
-            contentAlignment = Alignment.Center
-        ) {
-            if (creator.face.isNotEmpty()) {
-                AsyncImage(
-                    model = creator.face,
-                    contentDescription = null,
-                    modifier = Modifier.size((40 * scale.spacingScale).dp)
-                )
-            } else {
-                Text(
-                    text = creator.name.take(1),
-                    color = Pink,
-                    fontSize = (16 * scale.fontScale).sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        Spacer(modifier = Modifier.width((12 * scale.spacingScale).dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = creator.name,
-                fontSize = (14 * scale.fontScale).sp,
-                color = TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "UID: ${creator.mid}",
-                fontSize = (12 * scale.fontScale).sp,
-                color = TextHint
-            )
-        }
-        IconButton(onClick = onRemove) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "移除",
-                tint = TextHint,
-                modifier = Modifier.size((20 * scale.spacingScale).dp)
-            )
-        }
+            }, confirmButton = { TextButton(onClick = viewModel::confirmConfigurationImport, enabled = !state.isBusy) { Text("导入并替换") } },
+            dismissButton = { TextButton(onClick = viewModel::cancelConfigurationImport, enabled = !state.isBusy) { Text("取消") } })
     }
 }

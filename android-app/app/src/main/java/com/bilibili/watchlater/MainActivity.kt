@@ -1,13 +1,18 @@
 package com.bilibili.watchlater
 
 import android.os.Bundle
+import android.webkit.CookieManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bilibili.watchlater.ui.home.HomeScreen
 import com.bilibili.watchlater.ui.home.HomeViewModel
 import com.bilibili.watchlater.ui.importlist.ImportScreen
@@ -18,60 +23,44 @@ import com.bilibili.watchlater.ui.login.LoginViewModel
 import com.bilibili.watchlater.ui.theme.BiliWatchLaterTheme
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         val app = BiliApp.instance
-
         setContent {
-            BiliWatchLaterTheme {
-                var showLogin by remember { mutableStateOf(!app.cookieProvider.isLoggedIn) }
-                var showImport by remember {
-                    mutableStateOf(app.cookieProvider.isLoggedIn && !app.settingsRepo.importDone)
-                }
-                var showLog by remember { mutableStateOf(false) }
-
-                if (showLogin) {
-                    val loginViewModel = remember { LoginViewModel(app.cookieProvider) }
-                    LoginScreen(
-                        onLoginSuccess = {
-                            showLogin = false
-                            showImport = !app.settingsRepo.importDone
-                        },
-                        viewModel = loginViewModel
-                    )
-                } else if (showImport) {
-                    val uid = app.cookieProvider.dedeUserId?.toLongOrNull() ?: 0L
-                    val importViewModel = remember {
-                        ImportViewModel(app.checkRepo, app.creatorRepo, app.settingsRepo)
+            val factory = remember { object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T = when (modelClass) {
+                    HomeViewModel::class.java -> HomeViewModel(app.checkRepo, app.creatorRepo, app.settingsRepo, app.api, app.activityRepo, app.backupRepo)
+                    ImportViewModel::class.java -> ImportViewModel(app.checkRepo, app.creatorRepo, app.settingsRepo)
+                    LoginViewModel::class.java -> LoginViewModel(app.cookieProvider)
+                    else -> error("未知 ViewModel")
+                } as T
+            } }
+            val homeViewModel: HomeViewModel = viewModel(factory = factory)
+            val importViewModel: ImportViewModel = viewModel(factory = factory)
+            val loginViewModel: LoginViewModel = viewModel(factory = factory)
+            val state by homeViewModel.uiState.collectAsStateWithLifecycle()
+            var showLogin by rememberSaveable { mutableStateOf(!app.cookieProvider.isLoggedIn) }
+            var showImport by rememberSaveable { mutableStateOf(app.cookieProvider.isLoggedIn && !app.settingsRepo.importDone) }
+            var showLog by rememberSaveable { mutableStateOf(false) }
+            val dark = when (state.themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
+            BiliWatchLaterTheme(darkTheme = dark) {
+                when {
+                    showLogin -> LoginScreen(onLoginSuccess = { importViewModel.reset(); showLogin = false; showImport = !app.settingsRepo.importDone }, viewModel = loginViewModel)
+                    showImport -> ImportScreen(uid = app.cookieProvider.dedeUserId?.toLongOrNull() ?: 0,
+                        viewModel = importViewModel, onDone = { showImport = false })
+                    showLog -> {
+                        BackHandler { showLog = false }
+                        LogScreen(onBack = { showLog = false })
                     }
-                    ImportScreen(
-                        uid = uid,
-                        viewModel = importViewModel,
-                        onDone = { showImport = false }
-                    )
-                } else if (showLog) {
-                    LogScreen(onBack = { showLog = false })
-                } else {
-                    val homeViewModel = remember {
-                        HomeViewModel(
-                            checkRepo = app.checkRepo,
-                            creatorRepo = app.creatorRepo,
-                            settingsRepo = app.settingsRepo,
-                            api = app.api
-                        )
-                    }
-                    HomeScreen(
-                        viewModel = homeViewModel,
-                        onLogout = {
-                            app.cookieProvider.clear()
-                            app.settingsRepo.importDone = false
-                            showLogin = true
-                        },
-                        onOpenLog = { showLog = true }
-                    )
+                    else -> HomeScreen(homeViewModel, onLogout = {
+                        app.cookieProvider.clear()
+                        CookieManager.getInstance().removeAllCookies(null)
+                        CookieManager.getInstance().flush()
+                        app.settingsRepo.importDone = false
+                        showLogin = true
+                    }, onOpenLog = { showLog = true }, userId = app.cookieProvider.dedeUserId?.toLongOrNull() ?: 0)
                 }
             }
         }

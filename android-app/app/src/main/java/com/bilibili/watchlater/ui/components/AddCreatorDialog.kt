@@ -28,7 +28,8 @@ import com.bilibili.watchlater.ui.theme.TextSecondary
 fun AddCreatorDialog(
     error: String?,
     onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    busy: Boolean = false
 ) {
     var input by remember { mutableStateOf("") }
 
@@ -42,13 +43,14 @@ fun AddCreatorDialog(
                     onValueChange = { input = it },
                     label = { Text(stringResource(R.string.add_creator_hint)) },
                     singleLine = true,
+                    enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (error != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = error,
-                        color = Color.Red,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall
                     )
                 }
@@ -57,13 +59,14 @@ fun AddCreatorDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirm(input) },
+                enabled = !busy,
                 colors = ButtonDefaults.buttonColors(containerColor = Pink)
             ) {
-                Text(stringResource(R.string.confirm_add))
+                Text(if (busy) "添加中…" else stringResource(R.string.confirm_add))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !busy) {
                 Text(stringResource(R.string.dialog_cancel), color = TextSecondary)
             }
         }

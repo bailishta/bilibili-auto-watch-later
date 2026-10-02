@@ -8,6 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +55,9 @@ fun ImportScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(BgGray)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -68,7 +77,7 @@ fun ImportScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "自动帮你把关注的UP主新视频加入稍后观看",
+            text = "手动检查关注的 UP 主，把新视频加入稍后观看",
             fontSize = 14.sp,
             color = TextSecondary,
             textAlign = TextAlign.Center
@@ -83,7 +92,7 @@ fun ImportScreen(
             shape = RoundedCornerShape(10.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                FeatureItem("自动检测追踪名单中UP主的新视频")
+                FeatureItem("一键手动检查追踪名单中的新视频")
                 FeatureItem("发现新视频后自动添加到稍后观看")
                 FeatureItem("可自行增删追踪的UP主名单")
             }
