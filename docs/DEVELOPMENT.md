@@ -17,6 +17,8 @@
 
 `settings.checkers` 保存独立检查器，旧 `schedule` 或 `checkDays/checkTime` 自动迁移。每个启用的检查器使用独立的一次性 alarm，并在开始长任务前安排下一次运行。待执行检查器 ID 存于 `_pendingCheckers`，由队列及重试 alarm 恢复执行。
 
+`collect-watch-history` 使用共享的一次性 alarm：提前两倍检查范围进入采集区间，采集间隔至少 12 小时，每个本地自然日最多两次；`_historySyncBudget` 在请求前串行持久化尝试日期、次数和时间，启动、检查器、手动检查及失败重试共用限额。采集与视频检查、元数据刷新互斥，不触发视频添加；成功的每一页立即持久化。`watchedVideos:<uid>` 保存版本 2 的 BVID → 观看时间、同步时间及保留范围，保留天数为最大有效范围 × 2 后向上取整为天，再加 1 天，清理边界取最早保留日期的零点，包含检查当天。范围扩大时重新获取基线，补采仍遵守每日限额。旧版 BVID 数组迁移时赋予一次采集时间。
+
 追踪名单中的 `fans`、`lastPubdate`、`metaUpdatedAt`、`publications` 在检查过程中更新。排序和图表仅访问本地记录。图表以浏览器本地时区计算自然周，每个时间范围独立按 UID 去重。
 
 名单导入是合并操作；配置导入是替换操作，格式标识为 `bilibili-watch-later-configuration`、格式版本为 `1`，与插件版本独立。配置不包含登录信息、已处理视频和运行中的任务状态。
@@ -27,6 +29,7 @@
 
 ```powershell
 node --experimental-vm-modules --test tests/sorting-cache.test.cjs
+node --experimental-vm-modules --test tests/watch-history.test.cjs
 ```
 
 真实扩展测试使用 Playwright 和 Chromium 的独立临时 profile，不使用个人 B站登录。环境中需能解析 `playwright` 包，可通过 `NODE_PATH` 指向已有安装；可选 `CHROMIUM_EXECUTABLE` 指定支持加载扩展的 Chromium 可执行文件：

@@ -2,12 +2,14 @@ import { sortTrackingMids } from '../core/activity.js';
 import { initCheckers } from './checkers.js';
 import { createActivityPanel } from './activity-panel.js';
 import { initConfigBackup } from './config-backup.js';
+import { initSortPicker } from './sort-picker.js';
 
 // ── DOM 元素 ──
 const $statusBadge = document.getElementById('status-badge');
 const $statTracking = document.getElementById('stat-tracking');
 const $statNew = document.getElementById('stat-new');
 const $btnCheck = document.getElementById('btn-check');
+const $checkLabel = document.getElementById('check-label');
 const $btnOpenWl = document.getElementById('btn-open-wl');
 const $btnReimport = document.getElementById('btn-reimport');
 const $btnAdd = document.getElementById('btn-add');
@@ -67,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 排序方式（持久化在 settings 中）
   if (settings?.sortMode) $selectSort.value = settings.sortMode;
   _sortMode = $selectSort.value;
+  initSortPicker($selectSort);
 
   await refreshStatus();
   // 如果有正在进行的检查，恢复进度显示
@@ -92,8 +95,8 @@ $selectWindow.addEventListener('change', async () => {
 // ── 按钮事件 ──
 $btnCheck.addEventListener('click', async () => {
   $btnCheck.disabled = true;
-  $btnCheck.textContent = '检查中...';
-  $checkProgress.style.display = 'block';
+  $checkLabel.textContent = '检查中...';
+  $checkProgress.style.display = 'flex';
   $progressFill.style.width = '0%';
   $progressLabel.textContent = '正在检查...';
 
@@ -104,7 +107,7 @@ $btnCheck.addEventListener('click', async () => {
       stopProgress();
       $checkProgress.style.display = 'none';
       $btnCheck.disabled = false;
-      $btnCheck.textContent = '立即检查';
+      $checkLabel.textContent = '立即检查';
       alert(res.reason || '检查失败');
     }
   });
@@ -187,7 +190,7 @@ $btnCancelCheck.addEventListener('click', async () => {
   stopProgress();
   $checkProgress.style.display = 'none';
   $btnCheck.disabled = false;
-  $btnCheck.textContent = '立即检查';
+  $checkLabel.textContent = '立即检查';
   refreshStatus();
 });
 
@@ -342,17 +345,21 @@ function renderTrackingList(list, filter, sortMode) {
 
   $trackingList.innerHTML = mids.map(mid => {
     const u = list[mid];
-    const metaParts = [`UID: ${mid}`];
-    if (u.fans != null) metaParts.push(`粉丝 ${formatFans(u.fans)}`);
-    metaParts.push(u.lastPubdate > 0 ? `更新于 ${new Date(u.lastPubdate * 1000).toLocaleString('zh-CN', { hour12: false })}` : '更新时间待采集');
+    const updated = u.lastPubdate > 0
+      ? new Date(u.lastPubdate * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+      : '待检查';
     return `
       <div class="list-item">
-        <img class="avatar" src="${escapeHtml(u.face || '')}" alt="">
         <div class="info">
+          ${u.face ? `<img class="avatar" src="${escapeHtml(u.face)}" alt="">` : '<span class="avatar avatar-placeholder" aria-hidden="true">UP</span>'}
+          <div class="creator-name">
           <div class="name" title="${escapeHtml(u.name)}">${escapeHtml(u.name)}</div>
-          <div class="meta">${metaParts.join(' · ')}</div>
+          <div class="meta">UID ${escapeHtml(mid)}</div>
+          </div>
         </div>
-        <button class="delete-btn" data-mid="${mid}" title="移除">×</button>
+        <div class="creator-fans"><span class="mobile-label">粉丝 </span>${u.fans != null ? formatFans(u.fans) : '待检查'}</div>
+        <div class="creator-updated"><span class="mobile-label">更新 </span>${updated}</div>
+        <button class="delete-btn" data-mid="${escapeHtml(mid)}" aria-label="移除 ${escapeHtml(u.name)}">移除</button>
       </div>`;
   }).join('');
 
@@ -403,9 +410,9 @@ function startProgressPolling() {
   stopProgress(); // 清除旧状态
   stopMetaPolling(); // 检查与刷新互斥，防止两个轮询同时写进度条
 
-  $checkProgress.style.display = 'block';
+  $checkProgress.style.display = 'flex';
   $btnCheck.disabled = true;
-  $btnCheck.textContent = '检查中...';
+  $checkLabel.textContent = '检查中...';
   $progressFill.style.width = '0%';
   $progressLabel.textContent = '正在检查...';
 
@@ -415,12 +422,13 @@ function startProgressPolling() {
 
     if (p.type === 'progress') {
       $progressFill.style.width = `${(p.current / p.total) * 100}%`;
-      $progressLabel.textContent = `检查中${p.checkerName ? ` · ${p.checkerName}` : ''}... ${p.current}/${p.total} ${p.name || ''}`;
+      $progressLabel.textContent = `检查中… ${p.current}/${p.total}`;
+      $progressLabel.title = [p.checkerName, p.name].filter(Boolean).join(' · ');
     } else if (p.type === 'complete') {
       stopProgress();
       $checkProgress.style.display = 'none';
       $btnCheck.disabled = false;
-      $btnCheck.textContent = '立即检查';
+      $checkLabel.textContent = '立即检查';
       const report = p.report;
       if (report) {
         if (report.status === 'empty_list') {
@@ -444,7 +452,7 @@ function startProgressPolling() {
     stopProgress();
     $checkProgress.style.display = 'none';
     $btnCheck.disabled = false;
-    $btnCheck.textContent = '立即检查';
+    $checkLabel.textContent = '立即检查';
     refreshStatus();
   }, 120000);
 }
@@ -465,7 +473,7 @@ function stopMetaPolling() {
 function resetMetaUi() {
   $checkProgress.style.display = 'none';
   $btnCheck.disabled = false;
-  $btnCheck.textContent = '立即检查';
+  $checkLabel.textContent = '立即检查';
   $btnAdd.disabled = false;
   $btnImport.disabled = false;
   $btnReimport.disabled = false;
@@ -475,7 +483,7 @@ function startMetaPolling() {
   stopMetaPolling(); // 清除旧状态
   stopProgress(); // 检查与刷新互斥，防止两个轮询同时写进度条
 
-  $checkProgress.style.display = 'block';
+  $checkProgress.style.display = 'flex';
   $btnCheck.disabled = true;
   // 刷新期间名单整表读改写，禁用增删入口避免写入竞态
   $btnAdd.disabled = true;
@@ -505,41 +513,3 @@ function startMetaPolling() {
     refreshStatus();
   }, 120000);
 }
-
-// ── 调试日志面板 ──
-const $debugSection = document.getElementById('debug-section');
-const $debugContent = document.getElementById('debug-content');
-const $debugToggle = document.getElementById('debug-toggle');
-
-// 存储最近的调试日志
-let _debugLogs = [];
-
-function addDebugLog(msg, type) {
-  _debugLogs.push({ msg, type, time: Date.now() });
-  if (_debugLogs.length > 50) _debugLogs.shift();
-  renderDebugLogs();
-}
-
-function renderDebugLogs() {
-  if (_debugLogs.length === 0) return;
-  $debugSection.style.display = 'block';
-  $debugContent.innerHTML = _debugLogs.map(l =>
-    `<div class="log-line ${l.type === 'error' ? 'log-error' : l.type === 'success' ? 'log-success' : ''}">${escapeHtml(l.msg)}</div>`
-  ).join('');
-}
-
-$debugToggle.addEventListener('click', () => {
-  const content = $debugContent;
-  if (content.style.display === 'none') {
-    content.style.display = 'block';
-    $debugToggle.textContent = '📋 调试日志 ▼';
-  } else {
-    content.style.display = 'none';
-    $debugToggle.textContent = '📋 调试日志 ▶';
-  }
-});
-
-// 在检查按钮点击时记录日志
-$btnCheck.addEventListener('click', () => {
-  addDebugLog('手动触发检查...', 'info');
-});

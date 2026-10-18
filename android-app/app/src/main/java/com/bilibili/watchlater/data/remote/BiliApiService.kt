@@ -8,6 +8,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -16,7 +21,7 @@ import okhttp3.Response
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-class BiliApiService(private val cookieProvider: CookieProvider) {
+class BiliApiService(private val cookieProvider: CookieProvider) : CheckApi {
 
     private val logInterceptor = Interceptor { chain ->
         val req = chain.request()
@@ -73,12 +78,10 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
             val req = Request.Builder().url(url).apply {
                 requestHeaders().forEach { (k, v) -> addHeader(k, v) }
             }.build()
-            client.newCall(req).execute().use { resp ->
-                JSONObject(resp.body?.string() ?: "{}")
-            }
+            executeJson(req)
         } catch (e: java.io.IOException) {
             AppLogger.w(TAG, "GET请求失败: ${e.message}")
-            JSONObject("""{"code":-1,"message":"网络错误"}""")
+            throw e
         }
     }
 
@@ -88,19 +91,43 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
                 requestHeaders().forEach { (k, v) -> addHeader(k, v) }
                 header("Origin", "https://www.bilibili.com")
             }.post(body).build()
-            client.newCall(req).execute().use { resp ->
-                JSONObject(resp.body?.string() ?: "{}")
-            }
+            executeJson(req)
         } catch (e: java.io.IOException) {
             AppLogger.w(TAG, "POST请求失败: ${e.message}")
-            JSONObject("""{"code":-1,"message":"网络错误"}""")
+            throw e
         }
+    }
+
+    // Cancelling a check closes the active HTTP call instead of waiting for the socket timeout.
+    private suspend fun executeJson(request: Request): JSONObject = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, error: java.io.IOException) {
+                continuation.resumeWithException(error)
+            }
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val json = response.use { JSONObject(it.body?.string() ?: "{}") }
+                    continuation.resume(json)
+                } catch (error: Exception) { continuation.resumeWithException(error) }
+            }
+        })
     }
 
     // ── 用户信息 ──
 
     suspend fun getCurrentUser(): JSONObject {
         return get("https://api.bilibili.com/x/web-interface/nav")
+    }
+
+    override suspend fun getCurrentUserId(): String {
+        val cookieUid = cookieProvider.dedeUserId?.toLongOrNull()
+        if (cookieUid != null && cookieUid > 0) return cookieUid.toString()
+        val user = getCurrentUser()
+        val uid = user.optJSONObject("data")?.optLong("mid", 0) ?: 0
+        check(user.optInt("code", -1) == 0 && uid > 0) { "无法识别观看历史所属账号" }
+        return uid.toString()
     }
 
     // ── 获取 WBI keys ──
@@ -129,7 +156,7 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
 
     // ── UP主信息 ──
 
-    suspend fun getUpInfo(mid: Long): UpInfo {
+    override suspend fun getUpInfo(mid: Long): UpInfo {
         // 先尝试 card API（无需WBI签名）
         val cardData = get("https://api.bilibili.com/x/web-interface/card?mid=$mid")
         if (cardData.optInt("code") == 0) {
@@ -167,7 +194,7 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
 
     // ── UP主视频列表 ──
 
-    suspend fun getUserVideos(mid: Long, page: Int = 1, ps: Int = 10): UserVideosResult {
+    override suspend fun getUserVideos(mid: Long, page: Int, ps: Int): UserVideosResult {
         ensureWbiKeys()
         val params = WbiSigner.signParams(
             mapOf(
@@ -235,7 +262,7 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
         return data.optInt("code") == 0
     }
 
-    suspend fun addToWatchLaterBatch(aids: List<Long>): List<BatchResult> {
+    override suspend fun addToWatchLaterBatch(aids: List<Long>): List<BatchResult> {
         val jct = cookieProvider.biliJct
         if (jct == null) {
             AppLogger.e(TAG, "addToWatchLaterBatch失败: bili_jct为空，无法获取CSRF token")
@@ -258,32 +285,48 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
 
     // ── 观看历史 ──
 
-    suspend fun getWatchHistory(targetCount: Int = 500): Set<String> {
+    override suspend fun getWatchHistory(
+        targetCount: Int,
+        onPage: suspend (Map<String, Long>) -> Unit
+    ): Set<String> {
         val bvids = mutableSetOf<String>()
-        var cursor = 0L
+        var max = 0L
+        var viewAt = 0L
+        var business = ""
+        var scanned = 0
+        val seenCursors = mutableSetOf<Triple<Long, Long, String>>()
         val ps = 30
 
-        while (bvids.size < targetCount) {
-            val data = get("https://api.bilibili.com/x/v2/history?ps=$ps&type=archive&max=$cursor")
-            if (data.optInt("code") != 0) break
+        while (scanned < targetCount) {
+            currentCoroutineContext().ensureActive()
+            if (!seenCursors.add(Triple(max, viewAt, business))) break
+            val data = get("https://api.bilibili.com/x/web-interface/history/cursor?ps=$ps&type=archive&max=$max&view_at=$viewAt&business=$business")
+            check(data.optInt("code", -1) == 0) { "观看历史接口失败：${data.optInt("code", -1)}" }
 
-            val list = data.optJSONArray("data")
-                ?: data.optJSONObject("data")?.optJSONArray("list")
-                ?: break
+            val payload = data.optJSONObject("data")
+            val list = checkNotNull(payload?.optJSONArray("list")) { "观看历史接口返回格式无效" }
             if (list.length() == 0) break
 
-            for (i in 0 until list.length()) {
+            val count = minOf(list.length(), targetCount - scanned)
+            val pageBvids = mutableMapOf<String, Long>()
+            for (i in 0 until count) {
                 val item = list.getJSONObject(i)
-                val bvid = item.optString("bvid", "")
-                    .ifEmpty { item.optJSONObject("history")?.optString("bvid", "").orEmpty() }
-                if (bvid.isNotEmpty()) bvids.add(bvid)
+                val bvid = item.optJSONObject("history")?.optString("bvid", "").orEmpty()
+                if (bvid.startsWith("BV")) {
+                    val now = System.currentTimeMillis() / 1000
+                    val watchedAt = item.optLong("view_at", now).let { if (it > 0) minOf(it, now) else now }
+                    pageBvids[bvid] = maxOf(pageBvids[bvid] ?: 0, watchedAt)
+                }
             }
+            scanned += count
+            bvids.addAll(pageBvids.keys)
+            onPage(pageBvids)
 
-            val last = list.getJSONObject(list.length() - 1)
-            val nextCursor = last.optLong("view_at", 0)
-                .let { if (it == 0L) last.optJSONObject("history")?.optLong("view_at", 0) ?: 0 else it }
-            if (nextCursor == 0L) break
-            cursor = nextCursor
+            val cursor = payload?.optJSONObject("cursor") ?: break
+            max = cursor.optLong("max", 0)
+            viewAt = cursor.optLong("view_at", 0)
+            business = cursor.optString("business", "")
+            if (max == 0L || viewAt == 0L || business.isEmpty()) break
         }
 
         return bvids
@@ -291,7 +334,7 @@ class BiliApiService(private val cookieProvider: CookieProvider) {
 
     // ── 关注列表 ──
 
-    suspend fun getFollowList(uid: Long, page: Int = 1, ps: Int = 50): FollowListResult {
+    override suspend fun getFollowList(uid: Long, page: Int, ps: Int): FollowListResult {
         val data = get("https://api.bilibili.com/x/relation/followings?vmid=$uid&pn=$page&ps=$ps&order=desc&order_type=attention")
         if (data.optInt("code") != 0) return FollowListResult(list = emptyList(), total = 0, hasMore = false)
 

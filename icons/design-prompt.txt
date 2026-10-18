@@ -1,0 +1,7 @@
+Use case: logo-brand
+Asset type: production app icon foreground for a Bilibili watch-later helper, shared by Android adaptive launcher and browser extension.
+Primary request: Design a beautifully crafted distinctive icon symbolizing saved videos to watch later, more polished and expressive than a plain play triangle.
+Subject: a compact stacked pair of rounded video cards, main card in vivid cyan/sky blue with a big clean white play triangle, a smaller saturated coral-pink circular clock badge overlapping the bottom-right with bold white clock hands. Two staggered video cards form one tightly integrated emblem. Subtle beveled 3D edges and soft dimensional shading, elegant contemporary utility app aesthetic. Clear bold silhouette and excellent readability at 16 pixels. The clock badge should be large enough to read at small sizes, with no hour ticks, no tiny detail.
+Composition: square canvas, single emblem centered, emblem occupies about 82 percent of image width, generous even transparent padding, front-facing with minimal perspective. All shapes form one coherent icon, no separate floating ornaments.
+Color palette: Bilibili-inspired cyan blue and coral pink, white play and clock marks, restrained deep navy edge accents. Intended to sit on a dark navy launcher background.
+Constraints: genuinely transparent background, no colored background tile, no outer square app frame, no words, no letters, no watermark, no mockup, no multiple options. High quality crisp edge antialiasing, polished gentle gradients; no heavy drop shadow, no photorealistic texture.

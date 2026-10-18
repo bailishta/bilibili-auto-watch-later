@@ -1,6 +1,8 @@
 package com.bilibili.watchlater.ui.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,7 +32,9 @@ fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: 
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 PanelTitle("追踪名单 · ${creators.size}")
-                FilledTonalButton(onClick = viewModel::showAddDialog, enabled = !state.isBusy) {
+                FilledTonalButton(onClick = viewModel::showAddDialog, enabled = !state.isBusy,
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("添加")
                 }
             }
@@ -39,7 +43,9 @@ fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: 
             OutlinedTextField(value = state.searchQuery, onValueChange = viewModel::setSearchQuery,
                 placeholder = { Text("搜索名称或 UID") }, leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = { if (state.searchQuery.isNotEmpty()) IconButton(onClick = { viewModel.setSearchQuery("") }) { Icon(Icons.Default.Close, "清空搜索") } },
-                modifier = Modifier.fillMaxWidth(), singleLine = true, shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface, unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -60,10 +66,11 @@ fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: 
             }
         }
         items(filtered, key = { it.mid }) { creator ->
-            Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surface) {
-                Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     CreatorAvatar(creator.name, creator.face, Modifier.size(38.dp).clickable { onOpenCreator(creator.mid) })
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f).clickable { onOpenCreator(creator.mid) }) {
                         Text(creator.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("UID ${creator.mid}" + (creator.fans?.let { " · 粉丝 ${formatFans(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall,

@@ -388,32 +388,6 @@ body {
   word-break: break-all;
 }
 
-/* 调试日志 */
-.debug-section {
-  margin-bottom: 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-.debug-header {
-  font-size: 11px;
-  color: var(--hint);
-  padding: 4px 8px;
-  cursor: pointer;
-  user-select: none;
-}
-.debug-content {
-  padding: 4px 8px 8px;
-  font-size: 10px;
-  color: var(--muted);
-  max-height: 120px;
-  overflow-y: auto;
-  font-family: monospace;
-  line-height: 1.5;
-  border-top: 1px solid var(--divider);
-}
-.debug-content .log-line { padding: 1px 0; }
-.debug-content .log-error { color: var(--danger); }
-.debug-content .log-success { color: var(--success); }
 .sort-hint {
   color: var(--hint);
   font-size: 12px;
@@ -451,8 +425,6 @@ h1 { font-size: 28px; font-weight: 600; }
 .section-header-actions { gap: 8px; flex-wrap: wrap; }
 .btn-sm { border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 6px; padding: 8px 12px; font-size: 12px; }
 .btn-sm:hover { border-color: var(--info-border); color: var(--info); background: var(--info-soft); }
-#btn-add { background: var(--info-soft); border-color: var(--info-border); color: var(--info); }
-#btn-add:hover { background: var(--info-hover); }
 .sort-row { margin-bottom: 10px; gap: 12px; }
 .setting-select { font-size: 13px; padding: 8px; }
 .sort-select { flex: 0 1 210px; min-width: 0; }
@@ -467,9 +439,6 @@ h1 { font-size: 28px; font-weight: 600; }
 .empty-hint { padding: 80px 16px; font-size: 14px; }
 .footer { padding-top: 18px; margin-top: 16px; text-align: left; }
 .progress-bar { padding: 12px; background: var(--accent-soft); border-radius: 8px; margin-bottom: 20px; font-size: 12px; }
-.debug-section { margin-top: 24px; background: var(--surface); }
-.debug-header { padding: 12px; font-size: 12px; }
-.debug-content { max-height: 200px; padding: 12px; font-size: 12px; }
 .modal-content { max-width: 440px; padding: 28px; }
 .modal-content h3 { font-size: 18px; margin-bottom: 18px; }
 .modal-content input { padding: 12px; color: var(--text); background: var(--input-bg); }

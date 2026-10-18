@@ -68,7 +68,7 @@ fun LoginScreen(
             errorMsg?.let {
                 Text(
                     text = it,
-                    color = androidx.compose.ui.graphics.Color.Red,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )

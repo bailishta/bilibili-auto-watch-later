@@ -1,5 +1,6 @@
 package com.bilibili.watchlater.ui.home
 
+import com.bilibili.watchlater.service.CheckController
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -17,6 +18,7 @@ data class BackupPreview(val creatorCount: Int, val recordCount: Int, val histor
 
 data class HomeUiState(
     val isChecking: Boolean = false,
+    val isCheckPaused: Boolean = false,
     val isCancelling: Boolean = false,
     val progress: Float = 0f,
     val progressText: String = "",
@@ -36,7 +38,7 @@ data class HomeUiState(
     val message: String? = null,
     val backupPreview: BackupPreview? = null
 ) {
-    val isBusy: Boolean get() = isChecking || busyLabel != null
+    val isBusy: Boolean get() = isChecking || isCheckPaused || busyLabel != null
 }
 
 class HomeViewModel(
@@ -45,7 +47,8 @@ class HomeViewModel(
     private val settingsRepo: SettingsRepository,
     private val api: BiliApiService,
     private val activityRepo: ActivityRepository,
-    private val backupRepo: BackupRepository
+    private val backupRepo: BackupRepository,
+    private val checkController: CheckController
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
@@ -58,6 +61,19 @@ class HomeViewModel(
 
     init {
         reloadSettings()
+        viewModelScope.launch {
+            checkController.state.collect { check ->
+                _uiState.update { it.copy(isChecking = check.running, isCheckPaused = check.paused,
+                    isCancelling = check.cancelling,
+                    progress = if (check.total > 0) check.current.toFloat() / check.total else 0f,
+                    progressText = if (check.running) check.text else "${check.current}/${check.total} · ${check.text}",
+                    report = check.report) }
+                if (!check.running) {
+                    reloadSettings()
+                    if (!check.paused && check.text.isNotEmpty()) showMessage(check.text)
+                }
+            }
+        }
         viewModelScope.launch { creators.collect { list -> _uiState.update { it.copy(trackingCount = list.size) } } }
         viewModelScope.launch {
             try { activityRepo.prune() }
@@ -110,31 +126,25 @@ class HomeViewModel(
     fun removeCreator(mid: Long) = operation("移除 UP 主") { creatorRepo.remove(mid) }
 
     fun startCheck() {
-        if (uiState.value.isBusy) return
-        _uiState.update { it.copy(isChecking = true, isCancelling = false, progress = 0f, progressText = "正在检查…", report = null) }
+        if (uiState.value.isChecking || uiState.value.busyLabel != null) return
+        checkController.start()
+    }
+
+    fun resumePendingCheck(canResume: () -> Boolean) {
+        if (uiState.value.isChecking || uiState.value.busyLabel != null) return
         viewModelScope.launch {
-            try {
-                val report = checkRepo.checkForNewVideos { current, total, name ->
-                    _uiState.update { it.copy(progress = if (total > 0) current.toFloat() / total else 0f,
-                        progressText = "${current}/${total} · $name") }
-                }
-                reloadSettings()
-                _uiState.update { it.copy(report = report) }
-                showMessage(when (report.status) {
-                    "empty_list" -> "追踪名单为空，请先添加或导入 UP 主"
-                    "cancelled" -> "检查已取消，已添加 ${report.added} 个视频"
-                    else -> "检查完成：添加 ${report.added} 个视频" + if (report.errors > 0) "，${report.errors} 位 UP 主检查失败" else ""
-                })
-            } catch (error: CancellationException) { throw error }
-            catch (error: Exception) { showMessage("检查失败：${error.message ?: "请检查网络或重新登录"}") }
-            finally { _uiState.update { it.copy(isChecking = false, isCancelling = false) } }
+            try { checkController.resumePending { canResume() && uiState.value.busyLabel == null } }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { showMessage("读取检查进度失败：${error.message}") }
         }
     }
 
     fun cancelCheck() {
-        if (!uiState.value.isChecking) return
-        checkRepo.cancel()
-        _uiState.update { it.copy(isCancelling = true) }
+        viewModelScope.launch {
+            try { checkController.cancel() }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { showMessage("取消检查失败：${error.message}") }
+        }
     }
 
     fun setSortMode(mode: String) {
@@ -220,5 +230,4 @@ class HomeViewModel(
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } ?: error("无法保存文件")
     }
 
-    override fun onCleared() { checkRepo.cancel(); super.onCleared() }
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,6 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import com.bilibili.watchlater.R
+import com.bilibili.watchlater.ui.theme.Coral
+import com.bilibili.watchlater.ui.theme.OnCoral
 import com.bilibili.watchlater.ui.theme.BgGray
 import com.bilibili.watchlater.ui.theme.BgWhite
 import com.bilibili.watchlater.ui.theme.Pink
@@ -63,7 +68,7 @@ fun ImportScreen(
         verticalArrangement = Arrangement.Center
     ) {
         // 图标
-        Text(text = "▶", fontSize = 48.sp, color = Pink)
+        Image(painterResource(R.drawable.app_brand_mark), contentDescription = null, modifier = Modifier.size(72.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -88,8 +93,8 @@ fun ImportScreen(
         // 功能说明
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = BgGray),
-            shape = RoundedCornerShape(10.dp)
+            colors = CardDefaults.cardColors(containerColor = BgWhite),
+            shape = RoundedCornerShape(18.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 FeatureItem("一键手动检查追踪名单中的新视频")
@@ -104,11 +109,11 @@ fun ImportScreen(
             // 初始状态：两个按钮
             Button(
                 onClick = { viewModel.startImport(uid) },
-                colors = ButtonDefaults.buttonColors(containerColor = Pink),
+                colors = ButtonDefaults.buttonColors(containerColor = Coral, contentColor = OnCoral),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Text("从B站关注列表导入", fontSize = 15.sp)
             }
@@ -123,7 +128,7 @@ fun ImportScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Text("稍后再说，手动添加", fontSize = 15.sp, color = TextSecondary)
             }
@@ -134,7 +139,7 @@ fun ImportScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = BgWhite),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -159,7 +164,7 @@ fun ImportScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = if (isSuccess) SuccessBg else WarningBg),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -175,7 +180,7 @@ fun ImportScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onDone,
-                        colors = ButtonDefaults.buttonColors(containerColor = Pink),
+                        colors = ButtonDefaults.buttonColors(containerColor = Coral, contentColor = OnCoral),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("开始使用")
@@ -189,14 +194,14 @@ fun ImportScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = WarningBg),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(text = error, fontSize = 14.sp, color = Warning)
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onDone,
-                        colors = ButtonDefaults.buttonColors(containerColor = Pink),
+                        colors = ButtonDefaults.buttonColors(containerColor = Coral, contentColor = OnCoral),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("稍后再说")

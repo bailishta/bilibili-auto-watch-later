@@ -1,6 +1,10 @@
 package com.bilibili.watchlater.ui.home
 
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,6 +13,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
@@ -21,10 +27,14 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bilibili.watchlater.ui.components.AddCreatorDialog
+import com.bilibili.watchlater.R
+import com.bilibili.watchlater.ui.theme.Success
+import com.bilibili.watchlater.ui.theme.SuccessBg
 import com.bilibili.watchlater.util.BiliAppLauncher
 import java.time.LocalDate
 
@@ -32,6 +42,16 @@ import java.time.LocalDate
 @Composable
 fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> Unit = {}, userId: Long = 0) {
     val context = LocalContext.current
+    CheckResumeEffect(viewModel)
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.startCheck()
+        if (!granted) viewModel.showMessage("通知未开启，无法发送完成提醒；检查进度和结果仍可在 App 内查看")
+    }
+    fun startCheck() {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else viewModel.startCheck()
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val creators by viewModel.creators.collectAsStateWithLifecycle()
     val records by viewModel.publications.collectAsStateWithLifecycle()
@@ -62,9 +82,21 @@ fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> 
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(title = { Text(if (page == 0) "稍后观看助手" else tabs[page], fontWeight = FontWeight.SemiBold) },
+            TopAppBar(title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Image(painterResource(R.drawable.app_brand_mark), contentDescription = null, modifier = Modifier.size(36.dp))
+                    Column {
+                        Text(if (page == 0) "稍后观看助手" else tabs[page], style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        if (page == 0) Text("按自己的节奏看", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-                actions = { Text("已登录", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 18.dp)) })
+                actions = {
+                    Surface(color = SuccessBg, shape = RoundedCornerShape(20.dp), modifier = Modifier.padding(end = 16.dp)) {
+                        Text("已登录", color = Success, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                    }
+                })
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
@@ -79,14 +111,15 @@ fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> 
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (state.isBusy) {
-                Surface(color = MaterialTheme.colorScheme.surface) {
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (state.isChecking) (if (state.isCancelling) "正在取消…" else state.progressText) else state.busyLabel.orEmpty(),
+                            Text(if (state.isChecking || state.isCheckPaused) (if (state.isCancelling) "正在取消…" else state.progressText) else state.busyLabel.orEmpty(),
                                 style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                            if (state.isChecking) TextButton(onClick = viewModel::cancelCheck, enabled = !state.isCancelling) { Text("取消") }
+                            if (state.isChecking || state.isCheckPaused) TextButton(onClick = viewModel::cancelCheck, enabled = !state.isCancelling) { Text("取消") }
                         }
-                        if (state.isChecking) LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+                        if (state.isChecking || state.isCheckPaused) LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
                         else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                 }
@@ -98,10 +131,10 @@ fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> 
                 }) { selected ->
                 holder.SaveableStateProvider(selected) {
                     when (selected) {
-                        0 -> DashboardScreen(state, viewModel::startCheck, ::openWatchLater, { page = 1 }, { page = 2 }, { page = 3 })
+                        0 -> DashboardScreen(state, ::startCheck, ::openWatchLater, { page = 3 })
                         1 -> CreatorListScreen(state, creators, viewModel, { listImport.launch(mimeTypes) },
                             { listExport.launch("bilibili-tracking-list-${LocalDate.now()}.json") }, { openUrl("https://space.bilibili.com/$it") })
-                        2 -> ActivityScreen(creators, records, state.historyWeeks) { page = 3 }
+                        2 -> ActivityScreen(creators, records, state.historyWeeks)
                         else -> SettingsScreen(state, viewModel, { configExport.launch("bilibili-configuration-android-${LocalDate.now()}.json") },
                             { configImport.launch(mimeTypes) }, { viewModel.reimportFollows(userId) }, onLogout, onOpenLog)
                     }

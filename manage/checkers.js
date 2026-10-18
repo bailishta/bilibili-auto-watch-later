@@ -23,13 +23,23 @@ export function initCheckers(settings) {
     document.getElementById('checker-count').textContent = `${checkers.filter(c => c.enabled).length} 个已启用 / 共 ${checkers.length} 个`;
     list.innerHTML = checkers.length ? checkers.map(checker => {
       const next = checker.enabled ? calculateNextCheckTime(checker.schedule) : null;
-      const schedule = [1,2,3,4,5,6,0].filter(day => checker.schedule[day]).map(day => `${DAYS[day]} ${checker.schedule[day]}`).join(' · ');
+      const scheduledDays = [1,2,3,4,5,6,0].filter(day => checker.schedule[day]);
+      const times = new Set(scheduledDays.map(day => checker.schedule[day]));
+      const schedule = scheduledDays.length === 7 && times.size === 1
+        ? `每天 ${checker.schedule[1]}`
+        : scheduledDays.map(day => `${DAYS[day]} ${checker.schedule[day]}`).join(' · ');
       return `<article class="checker-card" data-checker-id="${escape(checker.id)}">
-        <div class="checker-card-heading"><h3>${escape(checker.name)}</h3><span class="badge ${checker.enabled ? 'logged-in' : ''}">${checker.enabled ? '已启用' : '已暂停'}</span></div>
-        <p>${escape(schedule || '尚未选择检查日')}</p>
-        <p>${checker.scope === 'all' ? '全部追踪 UP 主' : `指定 ${checker.mids.length} 位 UP 主`} · 检查 ${checker.newVideoWindowHours} 小时内的新视频</p>
-        <p class="checker-next">${next ? `下次：${new Date(next).toLocaleString('zh-CN')}` : '暂无下次检查'}</p>
-        <div class="checker-actions"><button class="btn btn-sm" data-action="edit">编辑</button><button class="btn btn-sm" data-action="toggle">${checker.enabled ? '暂停' : '启用'}</button><button class="btn btn-sm danger-button" data-action="delete">删除</button></div>
+        <div class="checker-row">
+          <span class="checker-symbol ${checker.scope === 'all' ? '' : 'is-pink'}"><svg class="ui-icon" aria-hidden="true"><use href="../ui/icons.svg#calendar"/></svg></span>
+          <h3>${escape(checker.name)}</h3>
+          <span class="checker-schedule" title="${escape(schedule)}">${escape(schedule || '未设置时间')}</span>
+          <button class="checker-switch" data-action="toggle" role="switch" aria-checked="${checker.enabled}" aria-label="${escape(checker.name)}自动检查"><span></span></button>
+        </div>
+        <details class="checker-options"><summary>排程设置</summary>
+          <p>${checker.scope === 'all' ? '全部追踪 UP 主' : `指定 ${checker.mids.length} 位 UP 主`} · 检查 ${checker.newVideoWindowHours} 小时内的新视频</p>
+          <p class="checker-next">${next ? `下次：${new Date(next).toLocaleString('zh-CN')}` : '暂无下次检查'}</p>
+          <div class="checker-actions"><button class="btn btn-sm" data-action="edit">编辑</button><button class="btn btn-sm danger-button" data-action="delete">删除</button></div>
+        </details>
       </article>`;
     }).join('') : '<p class="empty-hint">暂无检查器，点击“添加”开始设置。</p>';
   }

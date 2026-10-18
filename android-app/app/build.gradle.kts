@@ -13,8 +13,9 @@ android {
         applicationId = "com.bilibili.watchlater"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "2.0.0"
+        versionCode = 6
+        versionName = "2.0.2"
+        testInstrumentationRunner = "com.bilibili.watchlater.CheckResumeInstrumentation"
     }
 
     buildTypes {
@@ -34,6 +35,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 

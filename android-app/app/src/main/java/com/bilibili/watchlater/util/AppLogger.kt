@@ -24,7 +24,8 @@ object AppLogger {
                 Level.WARN  -> "W"
                 Level.ERROR -> "E"
             }
-            return "${fmt.format(time)} $levelStr/$tag: $message"
+            val cause = throwable?.let { " [${it.javaClass.simpleName}: ${it.message.orEmpty()}]" }.orEmpty()
+            return "${fmt.format(time)} $levelStr/$tag: $message$cause"
         }
     }
 

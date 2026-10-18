@@ -1,7 +1,6 @@
 package com.bilibili.watchlater.ui.home
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.bilibili.watchlater.data.local.entity.PublicationEntity
 import com.bilibili.watchlater.data.repository.currentWeekStart
 import com.bilibili.watchlater.ui.components.CreatorAvatar
+import com.bilibili.watchlater.ui.theme.Coral
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import kotlin.math.cos
@@ -38,10 +38,9 @@ import kotlin.math.sin
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, historyWeeks: Int, onSettings: () -> Unit) {
+fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, historyWeeks: Int) {
     var offset by rememberSaveable { mutableIntStateOf(0) }
     var selectedDay by rememberSaveable { mutableStateOf<Int?>(null) }
-    var collapsed by rememberSaveable { mutableStateOf(false) }
     val boundedOffset = offset.coerceIn(-(historyWeeks - 1), 0)
     val start = currentWeekStart().plusWeeks(boundedOffset.toLong())
     LaunchedEffect(historyWeeks) {
@@ -57,57 +56,52 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Panel(Modifier.animateContentSize(tween(320, easing = FastOutSlowInEasing))) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    PanelTitle("更新分布")
-                    TextButton(onClick = { collapsed = !collapsed }) { Text(if (collapsed) "展开" else "收起") }
-                }
-                AnimatedVisibility(!collapsed) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("${start.format(DateTimeFormatter.ofPattern("yyyy年 M月d日"))} – ${start.plusDays(6).format(DateTimeFormatter.ofPattern("M月d日"))}" +
-                            if (boundedOffset == 0) " · 本周" else "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                PanelTitle("更新分布")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("${start.format(DateTimeFormatter.ofPattern("yyyy年 M月d日"))} – ${start.plusDays(6).format(DateTimeFormatter.ofPattern("M月d日"))}" +
+                        if (boundedOffset == 0) " · 本周" else "", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { offset--; selectedDay = null }, enabled = boundedOffset > -(historyWeeks - 1), modifier = Modifier.weight(1f)) { Text("上一周") }
+                        TextButton(onClick = { offset = 0; selectedDay = null }, modifier = Modifier.weight(1f)) { Text("本周") }
+                        TextButton(onClick = { offset++; selectedDay = null }, enabled = boundedOffset < 0, modifier = Modifier.weight(1f)) { Text("下一周") }
+                    }
+                    if (day == null) {
+                        Text("${summary.total} 位 UP 主更新 · 点击星期查看", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val max = summary.days.maxOf { it.mids.size }.coerceAtLeast(1)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TextButton(onClick = { offset--; selectedDay = null }, enabled = boundedOffset > -(historyWeeks - 1), modifier = Modifier.weight(1f)) { Text("上一周") }
-                            TextButton(onClick = { offset = 0; selectedDay = null }, modifier = Modifier.weight(1f)) { Text("本周") }
-                            TextButton(onClick = { offset++; selectedDay = null }, enabled = boundedOffset < 0, modifier = Modifier.weight(1f)) { Text("下一周") }
-                        }
-                        if (day == null) {
-                            Text("${summary.total} 位 UP 主更新 · 点击星期查看", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            val max = summary.days.maxOf { it.mids.size }.coerceAtLeast(1)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                summary.days.forEachIndexed { index, item ->
-                                    Column(Modifier.weight(1f).clickable { selectedDay = index; period = 0 }.padding(vertical = 8.dp)
-                                        .semantics { contentDescription = "${names[index]}，${item.mids.size} 位 UP 主更新" }, horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(item.mids.size.toString(), style = MaterialTheme.typography.labelMedium)
-                                        Box(Modifier.height(86.dp).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(5.dp)), contentAlignment = Alignment.BottomCenter) {
-                                            if (item.mids.isNotEmpty()) Box(Modifier.fillMaxWidth().height((item.mids.size.toFloat() / max * 86).dp)
-                                                .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(5.dp)))
-                                        }
-                                        Text(names[index], style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            summary.days.forEachIndexed { index, item ->
+                                Column(Modifier.weight(1f).clickable { selectedDay = index; period = 0 }.padding(vertical = 8.dp)
+                                    .semantics { contentDescription = "${names[index]}，${item.mids.size} 位 UP 主更新" }, horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(item.mids.size.toString(), style = MaterialTheme.typography.labelMedium)
+                                    Box(Modifier.height(86.dp).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(5.dp)), contentAlignment = Alignment.BottomCenter) {
+                                        if (item.mids.isNotEmpty()) Box(Modifier.fillMaxWidth().height((item.mids.size.toFloat() / max * 86).dp)
+                                            .background(Coral, RoundedCornerShape(7.dp)))
                                     }
+                                    Text(names[index], style = MaterialTheme.typography.labelSmall, maxLines = 1)
                                 }
                             }
-                            if (summary.total == 0) Text("这一周暂无已采集的更新", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                        } else {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${names[selectedDay!!]} · ${day.mids.size} 位 UP 主", style = MaterialTheme.typography.bodySmall)
-                                TextButton(onClick = { selectedDay = null }) { Text("返回整周") }
-                            }
-                            Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(selected = period == 0, onClick = { period = 0 }, label = { Text("上午") })
-                                FilterChip(selected = period == 1, onClick = { period = 1 }, label = { Text("下午") })
-                            }
-                            UpdateClock(minutes, period)
-                            Text("具体更新时间与 UP 主", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (minutes.isEmpty()) Text("${if (period == 0) "上午" else "下午"}暂无更新", style = MaterialTheme.typography.bodyMedium)
                         }
+                        if (summary.total == 0) Text("这一周暂无已采集的更新", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    } else {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${names[selectedDay!!]} · ${day.mids.size} 位 UP 主", style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = { selectedDay = null }) { Text("返回整周") }
+                        }
+                        Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(selected = period == 0, onClick = { period = 0 }, label = { Text("上午") })
+                            FilterChip(selected = period == 1, onClick = { period = 1 }, label = { Text("下午") })
+                        }
+                        UpdateClock(minutes, period)
+                        Text("具体更新时间与 UP 主", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (minutes.isEmpty()) Text("${if (period == 0) "上午" else "下午"}暂无更新", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
         }
-        if (!collapsed && day != null) {
+        if (day != null) {
             items(minutes.toList(), key = { it.first }) { (minute, people) ->
-                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.width(64.dp)) {
                             Text(minuteLabel(minute), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -115,7 +109,7 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
                         }
                         FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             people.forEach { creator ->
-                                Surface(shape = RoundedCornerShape(5.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                                     Row(Modifier.padding(4.dp).semantics { contentDescription = "${creator.name}，UID ${creator.mid}" }, verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                         CreatorAvatar(creator.name, creator.face, Modifier.size(24.dp))
@@ -131,7 +125,6 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
         }
         item {
             Text("${ZoneId.systemDefault().id} · 保留最近 $historyWeeks 周\n记录来自手动检查，每个时段按 UP 主去重，不是完整历史。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            TextButton(onClick = onSettings) { Text("统计设置") }
         }
     }
 }

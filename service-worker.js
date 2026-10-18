@@ -3,6 +3,8 @@ import * as storage from './core/storage.js';
 import { checkForNewVideos, importFollowList } from './core/checker.js';
 import { refreshCreatorMeta } from './core/meta.js';
 import { calculateNextCheckTime } from './core/schedules.js';
+import { historyCollectionPlan, historyRetentionHours } from './core/history-lifecycle.js';
+import { getWatchedVideos } from './core/watch-history.js';
 
 // ── 顶层：首次安装处理 ──
 
@@ -15,11 +17,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   // 确保 alarm 存在（按用户设置的星期和时间排程）
   await scheduleNextCheck();
   await storage.prunePublicationHistory();
+  await collectHistoryIfActive();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   await scheduleNextCheck();
   await storage.prunePublicationHistory();
+  await collectHistoryIfActive();
   await drainCheckQueue();
 });
 
@@ -27,11 +31,19 @@ chrome.runtime.onStartup.addListener(async () => {
 
 const CHECK_PREFIX = 'check-watch-later:';
 const RETRY_ALARM = 'check-watch-later-queue';
+const HISTORY_ALARM = 'collect-watch-history';
 let scheduleWrites = Promise.resolve();
 let queueWrites = Promise.resolve();
 let draining = false;
 
 chrome.alarms.onAlarm.addListener(async alarm => {
+  if (alarm.name === HISTORY_ALARM) {
+    const settings = await storage.getSettings();
+    // 先安排下次采集，工作线程被终止也能恢复；采集不触发新视频检查。
+    await scheduleHistoryCollection(settings);
+    await collectHistoryIfActive(settings);
+    return;
+  }
   if (alarm.name === RETRY_ALARM) return drainCheckQueue();
   const id = alarm.name === 'check-watch-later' ? 'default'
     : alarm.name.startsWith(CHECK_PREFIX) ? alarm.name.slice(CHECK_PREFIX.length) : null;
@@ -41,6 +53,7 @@ chrome.alarms.onAlarm.addListener(async alarm => {
   if (!checker) return;
   // 在长任务前安排下次运行，同一时间的多个检查器进入持久化队列。
   await scheduleOne(checker);
+  await scheduleHistoryCollection(await storage.getSettings());
   await updateQueue(queue => { if (!queue.includes(id)) queue.push(id); });
   await chrome.alarms.create(RETRY_ALARM, { when: Date.now() + 60000, periodInMinutes: 1 });
   return drainCheckQueue();
@@ -53,6 +66,28 @@ async function scheduleOne(checker) {
   if (when) await chrome.alarms.create(name, { when });
 }
 
+async function scheduleHistoryCollection(settings) {
+  await chrome.alarms.clear(HISTORY_ALARM);
+  const { nextTime } = historyCollectionPlan(settings.checkers, Date.now(), await storage.getHistorySyncBudget());
+  if (nextTime !== null) await chrome.alarms.create(HISTORY_ALARM, { when: nextTime });
+  await storage.pruneAllWatchedVideos(historyRetentionHours(settings));
+}
+
+async function collectHistoryIfActive(settings = null) {
+  if (_historyCollecting || _checkRunning || _metaRefreshing || _configImporting) return;
+  // 在任何异步操作前占用互斥，避免手动检查和背景采集同时请求。
+  _historyCollecting = true;
+  try {
+    settings ||= await storage.getSettings();
+    if (!historyCollectionPlan(settings.checkers).active) return;
+    const cookies = await api.getCookies();
+    if (!cookies.SESSDATA) return;
+    await getWatchedVideos(cookies, { retentionHours: historyRetentionHours(settings) });
+  } catch (error) {
+    console.warn('[观看历史采集]', error.message);
+  } finally { _historyCollecting = false; }
+}
+
 function scheduleNextCheck() {
   const pending = scheduleWrites.then(async () => {
     const { checkers } = await storage.getSettings();
@@ -61,6 +96,7 @@ function scheduleNextCheck() {
       if (alarm.name === 'check-watch-later' || alarm.name.startsWith(CHECK_PREFIX)) await chrome.alarms.clear(alarm.name);
     }
     for (const checker of checkers) await scheduleOne(checker);
+    await scheduleHistoryCollection(await storage.getSettings());
   });
   scheduleWrites = pending.catch(() => {});
   return pending;
@@ -85,14 +121,14 @@ async function drainCheckQueue() {
     while (true) {
       const queue = await updateQueue(() => {});
       if (!queue.length) { await chrome.alarms.clear(RETRY_ALARM); return; }
-      if (_checkRunning || _metaRefreshing || _configImporting) {
+      if (_checkRunning || _metaRefreshing || _historyCollecting || _configImporting) {
         await chrome.alarms.create(RETRY_ALARM, { when: Date.now() + 60000, periodInMinutes: 1 });
         return;
       }
       const { checkers } = await storage.getSettings();
       const checker = checkers.find(item => item.id === queue[0] && item.enabled);
       // 获取设置期间手动检查可能开始；重新检查互斥条件。
-      if (_checkRunning || _metaRefreshing || _configImporting) continue;
+      if (_checkRunning || _metaRefreshing || _historyCollecting || _configImporting) continue;
       if (checker) {
         try { await runCheck(checker); }
         catch (error) { console.error('[检查器]', checker.name, error); }
@@ -104,6 +140,7 @@ async function drainCheckQueue() {
 
 // 防止重复触发全量元数据刷新
 let _metaRefreshing = false;
+let _historyCollecting = false;
 // 检查是否进行中（与元数据刷新互斥，避免并发请求B站）
 let _checkRunning = false;
 let _configImporting = false;
@@ -146,14 +183,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function handleMessage(msg) {
   if (_configImporting) return { success: false, reason: '配置导入中，请稍后再操作' };
   if (msg.type === 'importConfiguration') {
-    if (_checkRunning || _metaRefreshing || draining || _activeConfigWrites) return { success: false, reason: '请等待当前检查、刷新或保存完成后再导入配置' };
+    if (_checkRunning || _metaRefreshing || _historyCollecting || draining || _activeConfigWrites) return { success: false, reason: '请等待当前检查、采集、刷新或保存完成后再导入配置' };
     _configImporting = true;
     try {
       const result = await storage.restoreConfiguration(msg.backup);
       await updateQueue(queue => { queue.length = 0; });
       await scheduleNextCheck();
       return { success: true, ...result };
-    } finally { _configImporting = false; }
+    } finally { _configImporting = false; await collectHistoryIfActive(); }
   }
   const writing = CONFIG_WRITES.has(msg.type);
   if (writing) _activeConfigWrites++;
@@ -181,6 +218,7 @@ async function routeMessage(msg) {
     }
 
     case 'triggerCheck': {
+      if (_historyCollecting) return { success: false, reason: '观看历史采集中，请稍后再检查' };
       if (_metaRefreshing) {
         return { success: false, reason: '数据刷新进行中，请稍后再检查' };
       }
@@ -193,6 +231,7 @@ async function routeMessage(msg) {
     case 'saveChecker': {
       const checker = await storage.saveChecker(msg.checker);
       await scheduleNextCheck();
+      await collectHistoryIfActive();
       return { success: true, checker };
     }
     case 'deleteChecker': {
@@ -214,6 +253,7 @@ async function routeMessage(msg) {
 
     case 'saveSettings': {
       await storage.saveSettings(msg.settings);
+      await scheduleNextCheck();
       return { success: true };
     }
 
@@ -281,6 +321,7 @@ async function routeMessage(msg) {
     }
 
     case 'refreshCreatorMeta': {
+      if (_historyCollecting) return { success: false, reason: '观看历史采集中，请稍后再刷新' };
       // 全量刷新追踪名单的粉丝数/更新时间元数据
       if (_metaRefreshing) {
         return { success: false, reason: '数据刷新已在进行中' };

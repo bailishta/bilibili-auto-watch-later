@@ -1,0 +1,23 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--page-bg); color: var(--text); font: 14px/1.6 var(--font-family); }
+.container { width: 100%; max-width: 480px; padding: 36px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); box-shadow: var(--panel-shadow); text-align: center; }
+.logo { display: block; margin: 0 auto 20px; }
+h1 { font-size: 22px; font-weight: 600; }
+.subtitle { margin: 10px 0 24px; color: var(--muted); }
+.features { list-style: none; text-align: left; padding: 18px; margin-bottom: 24px; background: var(--input-bg); border-radius: 14px; }
+.features li { position: relative; padding-left: 20px; margin: 6px 0; color: var(--muted); font-size: 13px; }
+.features li::before { content: '✓'; position: absolute; left: 0; color: var(--accent-ink); }
+.btn { display: block; width: 100%; min-height: 48px; margin-bottom: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; font: inherit; }
+.btn-primary { background: var(--primary-strong); color: var(--on-accent); border-color: var(--primary-bg); font-weight: 600; box-shadow: var(--accent-shadow); }
+.btn-primary:hover { filter: brightness(.96); }
+.btn-primary:disabled { background: var(--accent-soft); color: var(--accent-ink); cursor: wait; box-shadow: none; }
+.btn-secondary { background: var(--surface); color: var(--muted); }
+.btn-secondary:hover { background: var(--surface-soft); }
+.progress, .result { display: none; margin-top: 16px; font-size: 13px; color: var(--muted); }
+.progress.show, .result.show { display: block; }
+.result { padding: 14px; border-radius: 12px; }
+.result.success { background: var(--success-soft); color: var(--success); }
+.result.warn { background: var(--danger-soft); color: var(--danger); }
+.skip-link { color: var(--hint); cursor: pointer; text-decoration: underline; }
+button:focus-visible { outline: 2px solid var(--info); outline-offset: 3px; }
+@media (max-width: 480px) { body { padding: 16px; } .container { padding: 24px; } }

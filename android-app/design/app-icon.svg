@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108">
+  <title>稍后观看助手 · 收藏播放</title>
+  <defs>
+    <linearGradient id="rose" x1="10" y1="0" x2="100" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EC8C91"/><stop offset=".5" stop-color="#D66079"/><stop offset="1" stop-color="#B64164"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="36" y1="28" x2="72" y2="80" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFEAE1"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#rose)" d="M0 0H108V108H0Z"/>
+  <path fill="#3E1730" opacity=".14" d="M42 30H66Q74 30 74 38V80Q74 83 71 81L54 70L37 81Q34 83 34 80V38Q34 30 42 30Z"/>
+  <path fill="url(#paper)" fill-rule="evenodd" d="M42 28H66Q74 28 74 36V78Q74 81 71 79L54 68L37 79Q34 81 34 78V36Q34 28 42 28Z M49 41Q47 40 47 43V57Q47 60 49 59L62 52Q65 50 62 48Z"/>
+</svg>

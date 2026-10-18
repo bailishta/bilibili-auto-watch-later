@@ -188,6 +188,6 @@ private fun LogItem(entry: AppLogger.Entry) {
 private fun levelColor(level: AppLogger.Level): Color = when (level) {
     AppLogger.Level.DEBUG -> TextHint
     AppLogger.Level.INFO -> TextPrimary
-    AppLogger.Level.WARN -> Color(0xFFFF9800)
-    AppLogger.Level.ERROR -> Color(0xFFFF0000)
+    AppLogger.Level.WARN -> com.bilibili.watchlater.ui.theme.Warning
+    AppLogger.Level.ERROR -> androidx.compose.material3.MaterialTheme.colorScheme.error
 }

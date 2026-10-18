@@ -537,35 +537,46 @@ export async function getWatchLaterList() {
 }
 
 // 获取观看历史（用于过滤已看过的视频）
-// targetCount: 目标获取条数，通过分页请求达到（API单页上限30）
-export async function getWatchHistory(targetCount = 500) {
+// targetCount: 最多读取的历史条数；onPage 用于及时持久化成功的页面。
+export async function getWatchHistory(targetCount = 500, onPage = null, since = 0) {
   const ps = 30;
-  let bvids = [];
-  let cursor = 0;
+  const bvids = new Set();
+  let scanned = 0;
+  let cursor = { max: 0, view_at: 0, business: '' };
+  const seenCursors = new Set();
 
-  while (bvids.length < targetCount) {
+  while (scanned < targetCount) {
+    const cursorKey = JSON.stringify([cursor.max, cursor.view_at, cursor.business]);
+    if (seenCursors.has(cursorKey)) break;
+    seenCursors.add(cursorKey);
+    const params = new URLSearchParams({
+      ps: String(ps), type: 'archive', max: String(cursor.max),
+      view_at: String(cursor.view_at), business: cursor.business
+    });
     const data = await biliFetch(
-      `https://api.bilibili.com/x/v2/history?ps=${ps}&max=${cursor}`
+      `https://api.bilibili.com/x/web-interface/history/cursor?${params}`
     );
     if (data.code !== 0) {
-      console.warn('[api] getWatchHistory API失败 code=', data.code);
-      break;
+      throw Error(`观看历史接口失败：${data.code}`);
     }
 
-    const list = Array.isArray(data.data) ? data.data : (data.data?.list || []);
+    const list = data.data?.list;
+    if (!Array.isArray(list)) throw Error('观看历史接口返回格式无效');
     if (list.length === 0) break;
 
-    for (const item of list) {
-      const bvid = item.bvid || item.history?.bvid;
-      if (bvid) bvids.push(bvid);
-    }
+    const page = list.slice(0, targetCount - scanned);
+    scanned += page.length;
+    const pageBvids = page.map(item => item.history?.bvid)
+      .filter(bvid => typeof bvid === 'string' && bvid.startsWith('BV'));
+    for (const bvid of pageBvids) bvids.add(bvid);
+    if (onPage) await onPage(pageBvids, page.map(item => ({ bvid: item.history?.bvid, viewAt: item.view_at })));
+    const oldestAt = Number(page[page.length - 1]?.view_at);
+    if (oldestAt > 0 && oldestAt < since) break;
 
-    // 取最后一条的 view_at 作为下一页游标
-    const last = list[list.length - 1];
-    const nextCursor = last?.view_at || last?.history?.view_at;
-    if (!nextCursor) break;
-    cursor = nextCursor;
+    const next = data.data.cursor;
+    if (!next?.max || !next.view_at || !next.business) break;
+    cursor = { max: next.max, view_at: next.view_at, business: next.business };
   }
 
-  return bvids.slice(0, targetCount);
+  return [...bvids];
 }

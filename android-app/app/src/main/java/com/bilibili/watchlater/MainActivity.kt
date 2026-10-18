@@ -21,8 +21,20 @@ import com.bilibili.watchlater.ui.log.LogScreen
 import com.bilibili.watchlater.ui.login.LoginScreen
 import com.bilibili.watchlater.ui.login.LoginViewModel
 import com.bilibili.watchlater.ui.theme.BiliWatchLaterTheme
+import com.bilibili.watchlater.util.AppLogger
+import com.bilibili.watchlater.util.checkEnvironment
 
 class MainActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        AppLogger.i("CheckLifecycle", "App 进入前台；${checkEnvironment()}")
+    }
+
+    override fun onStop() {
+        AppLogger.i("CheckLifecycle", "App 离开前台，检查活动=${BiliApp.instance.checkController.state.value.running}；${checkEnvironment()}")
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -31,7 +43,7 @@ class MainActivity : ComponentActivity() {
             val factory = remember { object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T = when (modelClass) {
-                    HomeViewModel::class.java -> HomeViewModel(app.checkRepo, app.creatorRepo, app.settingsRepo, app.api, app.activityRepo, app.backupRepo)
+                    HomeViewModel::class.java -> HomeViewModel(app.checkRepo, app.creatorRepo, app.settingsRepo, app.api, app.activityRepo, app.backupRepo, app.checkController)
                     ImportViewModel::class.java -> ImportViewModel(app.checkRepo, app.creatorRepo, app.settingsRepo)
                     LoginViewModel::class.java -> LoginViewModel(app.cookieProvider)
                     else -> error("未知 ViewModel")

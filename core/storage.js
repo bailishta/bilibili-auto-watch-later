@@ -1,6 +1,7 @@
 import { migrateSettings, normalizeChecker } from './schedules.js';
 import { mergePublications, normalizeHistoryWeeks, MAX_HISTORY_WEEKS } from './activity.js';
 import { createBackup, validateBackup } from './backup.js';
+import { normalizeWatchedHistory, pruneWatchedHistory, historyDayKey, historyNextSyncTime } from './history-lifecycle.js';
 
 const KEYS = {
   TRACKING_LIST: 'trackingList',
@@ -142,6 +143,83 @@ export async function isVideoTracked(bvid) {
 export async function getTrackedVideoCount() {
   const videos = await getTrackedVideos();
   return Object.keys(videos).length;
+}
+
+// ── 已观看视频：按账号和观看时间保存，与更新统计的保留周数独立 ──
+
+let watchedWrites = Promise.resolve();
+
+function watchedKey(uid) {
+  if (!/^[1-9]\d*$/.test(String(uid))) throw Error('无法识别观看历史所属账号');
+  return `watchedVideos:${uid}`;
+}
+
+export function getWatchedHistory(uid, retentionHours = 72) {
+  return mergeWatchedVideos(uid, [], { retentionHours });
+}
+
+export async function getWatchedVideos(uid, retentionHours = 72) {
+  const history = await getWatchedHistory(uid, retentionHours);
+  return new Set(Object.keys(history.videos));
+}
+
+export async function mergeWatchedVideos(uid, bvids, { records = [], retentionHours = 72, syncedAt } = {}) {
+  const key = watchedKey(uid);
+  const pending = watchedWrites.then(async () => {
+    const data = await chrome.storage.local.get(key);
+    const now = Math.floor(Date.now() / 1000);
+    const saved = normalizeWatchedHistory(data[key], now);
+    const stamps = new Map(records.map(record => [record.bvid, record.viewAt]));
+    for (const bvid of bvids) {
+      if (typeof bvid !== 'string' || !bvid.startsWith('BV')) continue;
+      const stamp = Number(stamps.get(bvid));
+      const viewAt = Number.isFinite(stamp) && stamp > 0 ? Math.min(stamp, now) : now;
+      saved.videos[bvid] = Math.max(saved.videos[bvid] || 0, viewAt);
+    }
+    if (syncedAt !== undefined) saved.syncedAt = syncedAt;
+    pruneWatchedHistory(saved, retentionHours, now);
+    if (JSON.stringify(data[key]) !== JSON.stringify(saved)) await chrome.storage.local.set({ [key]: saved });
+    return saved;
+  });
+  watchedWrites = pending.catch(() => {});
+  return pending;
+}
+
+// 所有检查器、启动补采和手动检查共用次数，重启不能绕过限额。
+export async function getHistorySyncBudget() {
+  await watchedWrites;
+  return (await chrome.storage.local.get('_historySyncBudget'))._historySyncBudget || {};
+}
+
+export function reserveHistorySync() {
+  const pending = watchedWrites.then(async () => {
+    const data = await chrome.storage.local.get('_historySyncBudget');
+    const budget = data._historySyncBudget || {};
+    const now = Date.now();
+    if (historyNextSyncTime(budget, now) > now) return false;
+    const day = historyDayKey(now);
+    await chrome.storage.local.set({ _historySyncBudget: {
+      day, count: budget.day === day ? (budget.count || 0) + 1 : 1, lastAttemptAt: now
+    } });
+    return true;
+  });
+  watchedWrites = pending.catch(() => {});
+  return pending;
+}
+
+export function pruneAllWatchedVideos(retentionHours) {
+  const pending = watchedWrites.then(async () => {
+    const data = await chrome.storage.local.get(null);
+    const updates = {};
+    for (const [key, raw] of Object.entries(data)) {
+      if (!/^watchedVideos:[1-9]\d*$/.test(key)) continue;
+      const history = pruneWatchedHistory(normalizeWatchedHistory(raw), retentionHours);
+      if (JSON.stringify(raw) !== JSON.stringify(history)) updates[key] = history;
+    }
+    if (Object.keys(updates).length) await chrome.storage.local.set(updates);
+  });
+  watchedWrites = pending.catch(() => {});
+  return pending;
 }
 
 // ── 统计信息 ──

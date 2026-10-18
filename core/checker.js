@@ -1,6 +1,8 @@
 import * as storage from './storage.js';
 import * as api from './api.js';
 import { collectCreatorMeta } from './meta.js';
+import { getWatchedVideos } from './watch-history.js';
+import { historyRetentionHours } from './history-lifecycle.js';
 
 const DELETED_NAMES = ['已注销用户', '账号已注销', '已注销'];
 const REQUEST_DELAY = 200; // ms，每批UP主之间的间隔
@@ -44,8 +46,7 @@ export async function checkForNewVideos(sendProgress, checker = null) {
 
   let watchedBvids = new Set();
   try {
-    const history = await api.getWatchHistory(500);
-    watchedBvids = new Set(history);
+    watchedBvids = await getWatchedVideos(cookies, { retentionHours: Math.max(historyRetentionHours(settings), (Math.ceil(windowMs / 3600000 * 2 / 24) + 1) * 24) });
   } catch (e) {
     console.warn('[checker] 获取观看历史失败，跳过此过滤:', e.message);
   }

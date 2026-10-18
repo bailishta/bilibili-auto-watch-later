@@ -2,6 +2,7 @@ package com.bilibili.watchlater.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import java.time.LocalDate
 
 class SettingsRepository(context: Context) {
 
@@ -46,6 +47,27 @@ class SettingsRepository(context: Context) {
         set(value) { require(value in THEME_MODES); prefs.edit().putString("theme_mode", value).apply() }
 
     fun configuration() = AppConfiguration(newVideoWindowHours, historyWeeks, sortMode, importDone, themeMode)
+
+    @Synchronized
+    fun finishCheck(sessionId: String, added: Int) {
+        // The process can stop after updating statistics but before deleting the checkpoint.
+        if (prefs.getString("finished_check_id", null) == sessionId) return
+        check(prefs.edit().putString("finished_check_id", sessionId)
+            .putInt("total_added", totalAdded + added).putInt("last_new_count", added)
+            .putLong("last_check", System.currentTimeMillis()).commit()) { "保存检查统计失败" }
+    }
+
+    @Synchronized
+    fun reserveHistorySync(): Boolean {
+        val now = System.currentTimeMillis()
+        val day = LocalDate.now().toString()
+        val count = if (prefs.getString("history_sync_day", "") == day) prefs.getInt("history_sync_count", 0) else 0
+        if (count >= 2 || now < prefs.getLong("history_sync_attempt", 0) + 12 * 60 * 60 * 1000L) return false
+        // 请求前保存，失败或进程重启也不能反复采集。
+        check(prefs.edit().putString("history_sync_day", day).putInt("history_sync_count", count + 1)
+            .putLong("history_sync_attempt", now).commit()) { "保存观看历史采集次数失败" }
+        return true
+    }
 
     fun restoreConfiguration(value: AppConfiguration) {
         require(value.newVideoWindowHours in WINDOW_HOURS && value.historyWeeks in 1..52)

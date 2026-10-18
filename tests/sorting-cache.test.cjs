@@ -19,7 +19,7 @@ function harness(initial = {}, overrides = {}) {
     storage: {
       onChanged: event('storage'),
       local: {
-        async get(key) { return Object.fromEntries((Array.isArray(key) ? key : [key]).map(k => [k, clone(data[k])])); },
+        async get(key) { return Object.fromEntries((key === null ? Object.keys(data) : Array.isArray(key) ? key : [key]).map(k => [k, clone(data[k])])); },
         async set(values) {
           const changes = {};
           for (const [key, value] of Object.entries(values)) {
@@ -44,7 +44,7 @@ function harness(initial = {}, overrides = {}) {
     tabs: { create() {} }
   };
   const api = {
-    getCookies: async () => ({ SESSDATA: 'test' }),
+    getCookies: async () => ({ SESSDATA: 'test', DedeUserID: '123' }),
     getWatchHistory: async () => [],
     getUserVideos: async () => ({ videos: [
       { bvid: 'BVnew', aid: 1, pubdate: 100000, title: 'new' },
@@ -359,4 +359,99 @@ test('configuration import is rejected while an existing mutation is awaiting it
   const result=await h.chrome.runtime.sendMessage({type:'importConfiguration',backup:{}});
   assert.equal(result.success,false); assert.match(result.reason,/等待/);
   release(); assert.equal((await adding).success,true);
+});
+
+test('checks still skip an archived watched video when it disappears from the latest history', async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const initial = { trackingList: { 1: { name: 'A' } } };
+  const old = harness(initial, { getWatchHistory: async () => ['BVwatched'] });
+  await (await old.load('core/checker.js')).checkForNewVideos();
+  assert.deepEqual(Object.keys(old.data['watchedVideos:123'].videos), ['BVwatched']);
+
+  const restarted = harness(old.data, {
+    getWatchHistory: async () => ['BVrecent'],
+    getUserVideos: async () => ({ videos: [
+      { bvid: 'BVwatched', aid: 1, pubdate: now, title: 'Already watched' },
+      { bvid: 'BVunwatched', aid: 2, pubdate: now, title: 'New' }
+    ] })
+  });
+  const later = Date.now() + 12 * 3600000 + 1000;
+  restarted.context.Date = class extends Date { constructor(...args) { super(...(args.length ? args : [later])); } static now() { return later; } };
+  const report = await (await restarted.load('core/checker.js')).checkForNewVideos();
+  assert.equal(report.added, 1);
+  const adds = restarted.calls.filter(call => call.name === 'addToWatchLaterBatch');
+  assert.deepEqual(clone(adds[0].args[0]), [2]);
+  assert.deepEqual(Object.keys(restarted.data['watchedVideos:123'].videos), ['BVwatched', 'BVrecent']);
+
+  const offline = harness(restarted.data, {
+    getWatchHistory: async () => { throw Error('offline'); },
+    getUserVideos: async () => ({ videos: [{ bvid: 'BVwatched', aid: 1, pubdate: now, title: 'Already watched' }] })
+  });
+  await (await offline.load('core/checker.js')).checkForNewVideos();
+  assert.equal(offline.calls.filter(call => call.name === 'addToWatchLaterBatch').length, 0);
+});
+
+test('Saturday checker starts collecting Thursday at 18:00, polls alone, and filters its saved watches Saturday', async () => {
+  let now = new Date(2026, 9, 6, 12).getTime(); // Tuesday
+  let available = true;
+  const h = harness({ trackingList: { 1: { name: 'A' } }, settings: {
+    checkers: [config('saturday', { schedule: { 6: '18:00' }, newVideoWindowHours: 24 })]
+  } }, {
+    getWatchHistory: async () => available ? ['BVwatched'] : [],
+    getUserVideos: async () => ({ videos: [{ bvid: 'BVwatched', aid: 1, title: 'Watched', pubdate: now / 1000 - 3600 }] })
+  });
+  h.context.Date = class extends Date { constructor(...args) { super(...(args.length ? args : [now])); } static now() { return now; } };
+  await h.load('service-worker.js');
+  await h.events.startup();
+  const collectAlarm = () => h.alarmTimes.find(a => a.name === 'collect-watch-history');
+  assert.equal(collectAlarm().when, new Date(2026, 9, 8, 18).getTime());
+  assert.equal(h.calls.filter(c => c.name === 'getWatchHistory').length, 0);
+
+  now = new Date(2026, 9, 8, 18).getTime(); // Thursday
+  await h.events.alarm({ name: 'collect-watch-history' });
+  assert.equal(collectAlarm().when, now + 12 * 3600000);
+  assert.equal(h.calls.filter(c => c.name === 'getUserVideos').length, 0);
+  assert.equal(h.calls.filter(c => c.name === 'addToWatchLaterBatch').length, 0);
+  const savedAt = h.data['watchedVideos:123'].videos.BVwatched;
+  available = false;
+
+  now += 12 * 3600000;
+  await h.events.alarm({ name: 'collect-watch-history' });
+  assert.equal(h.data['watchedVideos:123'].videos.BVwatched, savedAt);
+  now = new Date(2026, 9, 10, 18).getTime(); // Saturday
+  await h.events.alarm({ name: 'check-watch-later:saturday' });
+  assert.equal(h.data._checkProgress.report.added, 0);
+  assert.equal(h.calls.filter(c => c.name === 'addToWatchLaterBatch').length, 0);
+  assert.equal(collectAlarm().when, new Date(2026, 9, 15, 18).getTime());
+});
+
+test('overlapping checkers share polling, use longest retention, and stop when all are disabled', async () => {
+  const now = new Date(2026, 9, 7, 12).getTime();
+  const h = harness({ settings: { checkers: [
+    config('short', { schedule: { 6: '18:00' }, newVideoWindowHours: 24 }),
+    config('long', { schedule: { 6: '18:00' }, newVideoWindowHours: 72 })
+  ] } });
+  h.context.Date = class extends Date { constructor(...args) { super(...(args.length ? args : [now])); } static now() { return now; } };
+  const lifecycle = await h.load('core/history-lifecycle.js');
+  const storage = await h.load('core/storage.js');
+  const settings = await storage.getSettings();
+  assert.equal(lifecycle.historyRetentionHours(settings), 168);
+  assert.equal(lifecycle.historyCollectionPlan(settings.checkers, now).active, true);
+  await h.load('service-worker.js'); await h.events.startup();
+  assert.equal(h.alarmTimes.filter(a => a.name === 'collect-watch-history').length, 1);
+  assert.equal(h.calls.filter(c => c.name === 'getWatchHistory').length, 1);
+  for (const checker of settings.checkers) await h.chrome.runtime.sendMessage({ type: 'saveChecker', checker: { ...checker, enabled: false } });
+  assert.equal(h.alarmTimes.length, 0);
+});
+
+test('startup inside a collection window catches up and recreates alarms after worker restart', async () => {
+  const now = new Date(2026, 9, 9, 12).getTime(); // Friday
+  const h = harness({ settings: { checkers: [config('saturday', { schedule: { 6: '18:00' } })] },
+    'watchedVideos:123': { version: 2, videos: { BVprior: now / 1000 - 3600 }, syncedAt: now / 1000 - 3600 }
+  }, { getWatchHistory: async () => ['BVcatchup'] });
+  h.context.Date = class extends Date { constructor(...args) { super(...(args.length ? args : [now])); } static now() { return now; } };
+  await h.load('service-worker.js'); await h.events.startup();
+  assert.deepEqual(Object.keys(h.data['watchedVideos:123'].videos), ['BVprior', 'BVcatchup']);
+  assert.equal(h.alarmTimes.find(a => a.name === 'collect-watch-history').when, now + 12 * 3600000);
+  assert.equal(h.calls.filter(c => c.name === 'getUserVideos').length, 0);
 });

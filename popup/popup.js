@@ -1,7 +1,9 @@
 const $ = id => document.getElementById(id);
 const $check = $('btn-check');
+const $checkLabel = $('check-label');
 const $reimport = $('btn-reimport');
 let checking = false;
+let checkProgress = null;
 let refreshingMeta = false;
 let importing = false;
 
@@ -10,13 +12,20 @@ function feedback(message = '') {
   $('feedback').hidden = !message;
 }
 
-function renderActions(progress) {
+function renderActions() {
   $check.disabled = checking || refreshingMeta || importing;
-  $check.textContent = checking
-    ? (progress?.total ? `检查中… ${progress.current}/${progress.total}` : '检查中…')
+  const checkLabel = checking
+    ? (checkProgress?.total ? `检查中… ${checkProgress.current}/${checkProgress.total}` : '检查中…')
     : refreshingMeta ? '排序数据刷新中…' : '立即检查';
+  if ($checkLabel.textContent !== checkLabel) $checkLabel.textContent = checkLabel;
+  const hasProgress = checking && checkProgress?.total > 0;
+  const percent = hasProgress ? Math.min(100, Math.max(0, checkProgress.current / checkProgress.total * 100)) : 0;
+  $('popup-progress').hidden = !hasProgress;
+  $('popup-progress').setAttribute('aria-valuenow', String(Math.round(percent)));
+  $('popup-progress-fill').style.width = `${percent}%`;
+  $check.classList.toggle('is-checking', checking);
   $reimport.disabled = importing || checking || refreshingMeta;
-  $reimport.textContent = importing ? '导入中…' : '重新导入关注';
+  $('reimport-label').textContent = importing ? '导入中…' : '重新导入关注';
 }
 
 async function refreshStatus() {
@@ -34,10 +43,11 @@ async function syncState() {
     chrome.runtime.sendMessage({ type: 'getMetaProgress' }),
     chrome.runtime.sendMessage({ type: 'getImportProgress' })
   ]);
-  checking = progress?.type === 'progress';
+  checkProgress = progress;
+  checking = checkProgress?.type === 'progress';
   refreshingMeta = meta?.type === 'progress';
   importing = imported?.type === 'import-progress';
-  renderActions(progress);
+  renderActions();
   await refreshStatus();
 }
 
@@ -51,6 +61,7 @@ $('btn-open-wl').addEventListener('click', () => {
 });
 
 $check.addEventListener('click', async () => {
+  checkProgress = null;
   checking = true;
   feedback();
   renderActions();
@@ -91,10 +102,13 @@ $reimport.addEventListener('click', async () => {
 // 只展示后台状态，关闭弹窗不会取消检查；详细进度与取消入口在管理页。
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  if (changes._checkProgress) checking = changes._checkProgress.newValue?.type === 'progress';
+  if (changes._checkProgress) {
+    checkProgress = changes._checkProgress.newValue;
+    checking = checkProgress?.type === 'progress';
+  }
   if (changes._metaProgress) refreshingMeta = changes._metaProgress.newValue?.type === 'progress';
   if (changes._importProgress) importing = changes._importProgress.newValue?.type === 'import-progress';
-  renderActions(changes._checkProgress?.newValue);
+  renderActions();
   if (changes.stats || changes.trackingList) refreshStatus().catch(e => feedback(e.message));
 });
 

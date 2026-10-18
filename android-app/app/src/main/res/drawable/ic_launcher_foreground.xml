@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!-- Play triangle -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M38,30 L78,54 L38,78 Z"/>
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#243E1730"
+        android:pathData="M42,30H66Q74,30 74,38V80Q74,83 71,81L54,70L37,81Q34,83 34,80V38Q34,30 42,30Z" />
+    <path android:fillType="evenOdd"
+        android:pathData="M42,28H66Q74,28 74,36V78Q74,81 71,79L54,68L37,79Q34,81 34,78V36Q34,28 42,28Z M49,41Q47,40 47,43V57Q47,60 49,59L62,52Q65,50 62,48Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:startX="36" android:startY="28" android:endX="72" android:endY="80"
+                android:startColor="#FFFFFF" android:endColor="#FFEAE1" android:type="linear" />
+        </aapt:attr>
+    </path>
 </vector>
