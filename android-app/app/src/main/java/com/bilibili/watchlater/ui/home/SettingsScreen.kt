@@ -1,5 +1,14 @@
 package com.bilibili.watchlater.ui.home
 
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
+import com.bilibili.watchlater.ui.theme.AppButton as Button
+import com.bilibili.watchlater.ui.theme.AppOutlinedButton as OutlinedButton
+import com.bilibili.watchlater.ui.theme.AppTextButton as TextButton
+import com.bilibili.watchlater.ui.theme.AppOutlinedTextField as OutlinedTextField
+import com.bilibili.watchlater.ui.theme.AppFilterChip as FilterChip
+import com.bilibili.watchlater.ui.theme.AppAlertDialog as AlertDialog
+import com.bilibili.watchlater.ui.theme.AppSwitch as Switch
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -11,11 +20,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -29,7 +42,7 @@ fun SettingsScreen(state: HomeUiState, viewModel: HomeViewModel, onBackupExport:
     var confirmLogout by remember { mutableStateOf(false) }
     val validWeeks = weeks.toIntOrNull()?.takeIf { it in 1..52 }
     LaunchedEffect(state.isBusy) { if (state.isBusy) windowMenu = false }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding(), verticalArrangement = Arrangement.spacedBy(if (LocalGlassStyle.current.enabled) 18.dp else 14.dp)) {
         item {
             Panel {
                 PanelTitle("手动检查范围")
@@ -50,7 +63,9 @@ fun SettingsScreen(state: HomeUiState, viewModel: HomeViewModel, onBackupExport:
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = !state.isBusy)
                     )
-                    ExposedDropdownMenu(expanded = windowMenu, onDismissRequest = { windowMenu = false }) {
+                    ExposedDropdownMenu(expanded = windowMenu, onDismissRequest = { windowMenu = false },
+
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                         WindowOptions.forEach { (hours, text) -> DropdownMenuItem(text = { Text(text) }, onClick = { viewModel.setNewVideoWindow(hours); windowMenu = false }) }
                     }
                 }
@@ -71,7 +86,22 @@ fun SettingsScreen(state: HomeUiState, viewModel: HomeViewModel, onBackupExport:
         }
         item {
             Panel {
-                PanelTitle("显示模式")
+                PanelTitle("外观主题")
+                Row(Modifier.fillMaxWidth().toggleable(value = state.liquidGlassEnabled,
+                    enabled = state.busyLabel == null, role = Role.Switch, onValueChange = viewModel::setLiquidGlassEnabled)
+                    .padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Default.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("液态玻璃", style = MaterialTheme.typography.titleSmall)
+                        Text("仅底部导航使用玻璃与弹性透镜", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = state.liquidGlassEnabled, onCheckedChange = null, enabled = state.busyLabel == null)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                Text("显示模式", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("system" to "跟随系统", "light" to "浅色", "dark" to "深色").forEach { (key, label) ->
                         FilterChip(selected = state.themeMode == key, onClick = { viewModel.setThemeMode(key) }, label = { Text(label) }, enabled = !state.isBusy)

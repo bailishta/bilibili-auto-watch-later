@@ -1,0 +1,12 @@
+AndroidLiquidGlass / Backdrop
+Copyright 2025 Kyant
+https://github.com/Kyant0/AndroidLiquidGlass
+Reference version: 1.0.6 (896a94a3ade1cc1a940b92365f942a34971fecda)
+
+This app includes the Backdrop rendering source and adapted LiquidBottomTabs,
+DampedDragAnimation, DragGestureInspector and InteractiveHighlight under Apache-2.0.
+Local changes: Kotlin 2.0 / Compose 1.7 compatibility, Compose capsule shape,
+app theme, accessible navigation semantics, current selection callbacks, larger
+font support and opaque fallback tint for older Android. See third-party/Backdrop.md
+in the source repository for the full change list.
+The Apache-2.0 license is included alongside this notice.

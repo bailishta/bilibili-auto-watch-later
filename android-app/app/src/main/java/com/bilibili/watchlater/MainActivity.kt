@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
             var showImport by rememberSaveable { mutableStateOf(app.cookieProvider.isLoggedIn && !app.settingsRepo.importDone) }
             var showLog by rememberSaveable { mutableStateOf(false) }
             val dark = when (state.themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
-            BiliWatchLaterTheme(darkTheme = dark) {
+            BiliWatchLaterTheme(darkTheme = dark, liquidGlass = state.liquidGlassEnabled) {
                 when {
                     showLogin -> LoginScreen(onLoginSuccess = { importViewModel.reset(); showLogin = false; showImport = !app.settingsRepo.importDone }, viewModel = loginViewModel)
                     showImport -> ImportScreen(uid = app.cookieProvider.dedeUserId?.toLongOrNull() ?: 0,

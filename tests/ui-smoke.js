@@ -102,11 +102,18 @@ async page => {
   await manager.locator('.list-item').first().waitFor();
   check(manager.url().endsWith('/manage/manage.html'), 'Manager did not open in a new tab');
   check(await manager.locator('#btn-refresh-meta').count()===0, 'Refresh data button still present');
-  await manager.locator('#select-sort').selectOption('fans-desc');
+  const selectSort = async value => {
+    await manager.locator('#sort-trigger').click();
+    await manager.locator(`#sort-option-${value}`).click();
+    check(await manager.locator('#select-sort').inputValue() === value, 'Sort selection was not applied');
+    check(await manager.locator(`#sort-option-${value}`).getAttribute('aria-selected') === 'true', 'Sort selection semantics missing');
+  };
+  await selectSort('fans-desc');
   check(await manager.locator('.delete-btn').first().getAttribute('data-mid') === '111', 'Cached sorting failed');
   await manager.locator('#search-tracking').fill('100');
   check(await manager.locator('.list-item').count() === 1, 'Search failed');
   await manager.locator('#search-tracking').fill('');
+  await manager.locator('.manual-options summary').click();
   await manager.locator('#select-window').selectOption('48');
   await manager.locator('#btn-add-checker').click();
   await manager.locator('[name="checkerName"]').fill('工作日检查');
@@ -129,14 +136,15 @@ async page => {
   await manager.locator('.checker-card').nth(1).waitFor();
   check(await manager.locator('#select-window').inputValue() === '48', 'Manual window setting was not saved');
   const custom=manager.locator('.checker-card').filter({hasText:'工作日检查'});
+  await custom.locator('.checker-options summary').click();
   await custom.locator('[data-action="edit"]').click();
   check(await manager.locator('[data-time="1"]').inputValue() === '09:30', 'Independent schedule not saved');
   check(await manager.locator('[name="windowHours"]').inputValue() === '72', 'Independent window not saved');
   check(await manager.locator('#checker-people input[value="100"]').isChecked(), 'Scope selection not saved');
   await manager.locator('#checker-cancel').click();
   await custom.locator('[data-action="toggle"]').click();
-  await custom.getByText('已暂停',{exact:true}).waitFor();
-  check(await manager.locator('.checker-card').filter({hasText:'默认检查器'}).getByText('已启用',{exact:true}).count()===1, 'Pausing one checker affected another');
+  await custom.locator('[role="switch"][aria-checked="false"]').waitFor();
+  check(await manager.locator('.checker-card').filter({hasText:'默认检查器'}).locator('[role="switch"][aria-checked="true"]').count()===1, 'Pausing one checker affected another');
   const before=await manager.evaluate(()=>window.__messages.length);
   await manager.locator('#activity-prev').click();
   check(await manager.locator('.week-chart .activity-bar').count()===7, 'Week chart missing');
@@ -172,9 +180,9 @@ async page => {
   await manager.locator('#activity-today').click();
   check(await manager.locator('#activity-empty').isVisible(), 'Empty week state missing');
   check(await manager.evaluate(()=>window.__messages.length)===before, 'Chart made backend requests');
-  await manager.locator('#select-sort').selectOption('updated-desc');
+  await selectSort('updated-desc');
   check(await manager.locator('.delete-btn').first().getAttribute('data-mid')==='106', 'Latest publication sort failed');
-  await manager.locator('#select-sort').selectOption('updated-asc');
+  await selectSort('updated-asc');
   check(await manager.locator('.delete-btn').first().getAttribute('data-mid')==='100', 'Oldest publication sort failed');
   await manager.locator('#btn-add').click();
   await manager.locator('#add-input').fill('999');
@@ -217,11 +225,12 @@ async page => {
     await manager.screenshot({path:'.playwright-cli/bili-v2-manager-'+theme+'.png',fullPage:true,animations:'disabled'});
     await manager.locator('.week-chart .activity-bar').first().click();
   }
+  if (!await custom.locator('[data-action="delete"]').isVisible()) await custom.locator('.checker-options summary').click();
   await custom.locator('[data-action="delete"]').click();
   await custom.waitFor({state:'detached'});
   check(await manager.locator('.checker-card').count()===1, 'Deleting a checker failed');
-  const side=await manager.locator('#checkers-panel').boundingBox(), main=await manager.locator('.activity-panel').boundingBox();
-  check(side.x < main.x && side.width < main.width, 'Checkers are not in the sidebar');
+  const side=await manager.locator('#checkers-panel').boundingBox(), main=await manager.locator('#creators-panel').boundingBox();
+  check(side.x > main.x && side.width < main.width, 'Checkers are not in the right sidebar');
   check(!await manager.locator('#activity-weeks').isVisible(), 'Statistics options are not collapsed');
   await manager.locator('#activity-toggle').click();
   await manager.locator('#activity-content').waitFor({state:'hidden'});

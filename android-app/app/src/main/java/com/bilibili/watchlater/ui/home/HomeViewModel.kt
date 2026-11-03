@@ -29,6 +29,7 @@ data class HomeUiState(
     val newVideoWindowHours: Int = 24,
     val historyWeeks: Int = 3,
     val themeMode: String = "system",
+    val liquidGlassEnabled: Boolean = false,
     val sortMode: String = "default",
     val report: CheckReport? = null,
     val addDialogVisible: Boolean = false,
@@ -86,7 +87,8 @@ class HomeViewModel(
         _uiState.update { it.copy(
             totalAdded = settingsRepo.totalAdded, lastCheck = settingsRepo.lastCheck,
             lastNewCount = settingsRepo.lastNewCount, newVideoWindowHours = settingsRepo.newVideoWindowHours,
-            historyWeeks = settingsRepo.historyWeeks, themeMode = settingsRepo.themeMode, sortMode = settingsRepo.sortMode
+            historyWeeks = settingsRepo.historyWeeks, themeMode = settingsRepo.themeMode, sortMode = settingsRepo.sortMode,
+            liquidGlassEnabled = settingsRepo.liquidGlassEnabled
         ) }
     }
 
@@ -158,6 +160,10 @@ class HomeViewModel(
     fun setThemeMode(mode: String) {
         if (uiState.value.isBusy || mode !in SettingsRepository.THEME_MODES) return
         settingsRepo.themeMode = mode; reloadSettings()
+    }
+    fun setLiquidGlassEnabled(enabled: Boolean) {
+        if (uiState.value.busyLabel != null) return
+        settingsRepo.liquidGlassEnabled = enabled; reloadSettings()
     }
     fun setHistoryWeeks(weeks: Int) {
         if (weeks !in 1..52) { showMessage("请输入 1–52 周"); return }

@@ -1,5 +1,12 @@
 package com.bilibili.watchlater.ui.home
 
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
+import com.bilibili.watchlater.ui.theme.AppButton as FilledTonalButton
+import com.bilibili.watchlater.ui.theme.AppTextButton as TextButton
+import com.bilibili.watchlater.ui.theme.AppIconButton as IconButton
+import com.bilibili.watchlater.ui.theme.AppOutlinedTextField as OutlinedTextField
+import com.bilibili.watchlater.ui.theme.AppAlertDialog as AlertDialog
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bilibili.watchlater.ui.components.CreatorAvatar
+import com.bilibili.watchlater.ui.theme.AppSurface
 
 @Composable
 fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: HomeViewModel, onImport: () -> Unit,
@@ -28,7 +36,7 @@ fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: 
         val query = state.searchQuery.trim()
         sortCreators(creators.filter { query.isEmpty() || it.name.contains(query, ignoreCase = true) || it.mid.toString().contains(query) }, state.sortMode)
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 PanelTitle("追踪名单 · ${creators.size}")
@@ -44,14 +52,18 @@ fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: 
                 placeholder = { Text("搜索名称或 UID") }, leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = { if (state.searchQuery.isNotEmpty()) IconButton(onClick = { viewModel.setSearchQuery("") }) { Icon(Icons.Default.Close, "清空搜索") } },
                 modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface, unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
                     TextButton(onClick = { expanded = true }, enabled = !state.isBusy) { Text(SortOptions[state.sortMode].orEmpty()) }
-                    DropdownMenu(expanded, { expanded = false }) {
+                    DropdownMenu(expanded, { expanded = false },
+
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                         SortOptions.forEach { (key, text) -> DropdownMenuItem(text = { Text(text) }, onClick = { viewModel.setSortMode(key); expanded = false }) }
                     }
                 }
@@ -66,7 +78,7 @@ fun CreatorListScreen(state: HomeUiState, creators: List<CreatorUi>, viewModel: 
             }
         }
         items(filtered, key = { it.mid }) { creator ->
-            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+            AppSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     CreatorAvatar(creator.name, creator.face, Modifier.size(38.dp).clickable { onOpenCreator(creator.mid) })

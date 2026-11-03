@@ -2,9 +2,9 @@
 
 将追踪的 B站 UP主发布的新视频添加到「稍后观看」列表，提供 Chrome 扩展和 Android 客户端。Chrome 支持自动检查，Android 使用手动检查。
 
-**插件当前版本：2.0.0** · [下载插件](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/v2.0.0/bilibili-auto-watch-later-v2.0.0.zip) · [更新日志](CHANGELOG.md) · [开发与发布](docs/DEVELOPMENT.md)
+**插件当前版本：2.1.0** · [下载插件](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/v2.1.0/bilibili-auto-watch-later-v2.1.0.zip) · [更新日志](CHANGELOG.md) · [开发与发布](docs/DEVELOPMENT.md)
 
-**Android 当前版本：2.0.0** · [下载 APK](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.0.0/bilibili-watch-later-android-v2.0.0.apk) · [安卓说明](android-app/README.md) · [安卓 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.0.0)
+**Android 当前版本：2.1.0** · [下载 APK](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.1.0/bilibili-watch-later-android-v2.1.0.apk) · [安卓说明](android-app/README.md) · [安卓 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.1.0)
 
 ## 功能
 
@@ -24,7 +24,7 @@
 
 ### Chrome 扩展
 
-1. 下载 [v2.0.0 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/v2.0.0) 中的 `bilibili-auto-watch-later-v2.0.0.zip` 并解压（不要选择 GitHub 自动生成的 Source code）
+1. 下载 [v2.1.0 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/v2.1.0) 中的 `bilibili-auto-watch-later-v2.1.0.zip` 并解压（不要选择 GitHub 自动生成的 Source code）
 2. 打开 Chrome，进入 `chrome://extensions/`
 3. 开启右上角**「开发者模式」**
 4. 点击**「加载已解压的扩展程序」**，选择解压后的文件夹
@@ -32,9 +32,9 @@
 
 ### Android 客户端
 
-Android 2.0.0 使用 Jetpack Compose 原生手机界面，支持手动检查、缓存排序、更新分布和配置备份。功能和本地编译方式见 [安卓说明](android-app/README.md)。
+Android 2.1.0 使用 Jetpack Compose 原生手机界面，支持手动检查、缓存排序、更新分布和配置备份。功能和本地编译方式见 [安卓说明](android-app/README.md)。
 
-1. 下载 [Android v2.0.0 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.0.0) 中的 `bilibili-watch-later-android-v2.0.0.apk`
+1. 下载 [Android v2.1.0 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.1.0) 中的 `bilibili-watch-later-android-v2.1.0.apk`
 2. 安装到手机，首次打开需通过内嵌 WebView 登录 B站
 3. 登录后点击「导入关注列表」一键导入 B站 关注
 4. 点击「立即检查」手动扫描新视频

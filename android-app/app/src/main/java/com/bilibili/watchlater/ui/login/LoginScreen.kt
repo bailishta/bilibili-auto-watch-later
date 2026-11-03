@@ -1,5 +1,8 @@
 package com.bilibili.watchlater.ui.login
 
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
+import com.bilibili.watchlater.ui.theme.AppSurface
+import androidx.compose.foundation.shape.RoundedCornerShape
 import android.annotation.SuppressLint
 import android.os.Build
 import android.webkit.CookieManager
@@ -28,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bilibili.watchlater.R
-import com.bilibili.watchlater.ui.theme.Pink
+import com.bilibili.watchlater.ui.theme.AppBackgroundColor
 import com.bilibili.watchlater.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,9 +43,11 @@ fun LoginScreen(
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
+        containerColor = AppBackgroundColor,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.login_title)) },
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
                 )
@@ -74,7 +79,9 @@ fun LoginScreen(
                 )
             }
 
-            Box(modifier = Modifier.weight(1f)) {
+            AppSurface(modifier = Modifier.weight(1f).then(if (LocalGlassStyle.current.enabled)
+                Modifier.padding(horizontal = 12.dp, vertical = 8.dp) else Modifier),
+                shape = RoundedCornerShape(if (LocalGlassStyle.current.enabled) 24.dp else 0.dp), border = null) {
                 LoginWebView(
                     onLoginSuccess = {
                         viewModel.saveCookies(it.first, it.second, it.third)

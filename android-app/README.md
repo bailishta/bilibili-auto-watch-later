@@ -1,15 +1,23 @@
 # 稍后观看助手 Android
 
-Android 2.0.0 适配浏览器插件的管理功能，使用 Jetpack Compose 原生界面。要求 Android 8.0 及以上。
+Android 2.1.0 适配浏览器插件的管理功能，使用 Jetpack Compose 原生界面。要求 Android 8.0 及以上。
 
-[下载正式 APK](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.0.0/bilibili-watch-later-android-v2.0.0.apk) · [Release 与更新记录](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.0.0) · [完整更新日志](../CHANGELOG.md)
+[下载正式 APK](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.1.0/bilibili-watch-later-android-v2.1.0.apk) · [Release 与更新记录](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.1.0) · [完整更新日志](../CHANGELOG.md)
 
 ## 手机界面
 
 - **首页**：追踪人数、本次新发现、立即检查、跳转 B站安卓 APP 的稍后再看、累计添加与上次检查。未安装可用的哔哩哔哩 APP 时显示提示。
 - **名单**：头像、名称、UID、粉丝数、最后视频更新时间；支持搜索、增删、粉丝数／更新时间排序，以及 JSON 名单导入导出。
 - **更新**：按自然周查看每天更新人数，切换本周和历史周。进入某天默认上午，可切换下午；无指针 12 小时表盘，下方直接显示具体分钟、头像及名字。
-- **设置**：通过带下拉箭头的选择框调整手动检查时间范围、更新记录保留周数、跟随系统／浅色／深色、配置备份、重新导入关注、日志及退出登录。
+- **设置**：通过带下拉箭头的选择框调整手动检查时间范围、更新记录保留周数、外观主题、配置备份、重新导入关注、日志及退出登录。
+
+### 液态玻璃主题
+
+仅在「设置 → 外观主题」打开「液态玻璃」，即可即时切换；再次关闭恢复原有主题。外观选择自动保存，重启后保留，也包含在配置备份中；没有此字段的旧备份恢复为原有主题。
+
+液态玻璃支持跟随系统、浅色和深色，效果仅用于底部悬浮导航。卡片、顶栏、按钮、输入框、开关、菜单与弹窗使用清晰的普通材质，页面采用纯色背景。导航接入 Kyant0/AndroidLiquidGlass 1.0.6 的完整 Backdrop 渲染源码及 LiquidBottomTabs 实现：外层采用 8 dp 背景模糊和曲面折射；选中透镜按下鼓起、放大图标，可拖动并随速度形变，松手回弹，边缘包含真实像素色散和方向性高光。正文卡片保持普通材质。纯色背景下静止玻璃较淡，滚动内容经过导航或按压／拖动时光学变化更明显。
+
+Android 13 及以上使用 AGSL；Android 12 使用背景模糊与移动胶囊，Android 8–11 使用高不透明度兼容材质。页面与导航内容使用受控 GPU 图层采样，不进行截图轮询。保留原有主题开关和配置保存。具体实现及验证范围见 [液态玻璃实现说明](design/liquid-glass.md)。上游 Apache-2.0 许可随 APK 附带，源码固定版本及兼容改动见 [第三方源码说明](third-party/Backdrop.md)。
 
 APP 的检查由「立即检查」发起，没有定时检查或自动检查器。检查期间在通知中心显示已完成 UP 主数量和进度条，可切到其他应用；Android 13 及以上首次检查会请求通知权限，拒绝后仍可在 App 内查看进度和结果。前台服务只在检查运行时存在，完成、取消或暂停后立即停止并移除进度通知。检查完成另发一条「检查结果」通知，显示新增数量（包括没有新增视频）和失败项数量，点击打开 App，通知可划掉；暂停、取消不发送完成提醒。通知渠道设置和系统勿扰设置仍由用户控制。
 
@@ -72,14 +80,14 @@ Release 启用 R8 代码压缩，输出 `app/build/outputs/apk/release/app-relea
 & "$env:ANDROID_HOME/build-tools/35.0.0/apksigner.bat" sign `
   --ks "$env:BILI_SIGNING_STORE" --ks-key-alias "$env:BILI_SIGNING_ALIAS" `
   --ks-pass env:BILI_SIGNING_STORE_PASSWORD --key-pass env:BILI_SIGNING_KEY_PASSWORD `
-  --out app/build/outputs/apk/release/bilibili-watch-later-android-v2.0.0.apk `
+  --out app/build/outputs/apk/release/bilibili-watch-later-android-v2.1.0.apk `
   app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
 本次发布沿用已在此电脑使用的测试签名证书，便于同签名覆盖升级；构建类型为 Release，非 Debug。后续版本需要沿用同一私钥。妥善备份本机签名文件，不提交签名密钥、密码或 `local.properties` 到 GitHub。
 
-发布使用标签 `android-v2.0.0`，附件只包含已签名 APK 和 SHA-256 文件；插件使用独立标签 `v2.0.0`。详细发布说明在 [Android 发布记录](../docs/releases/android-v2.0.0.md)。
+发布使用标签 `android-v2.1.0`，附件只包含已签名 APK 和 SHA-256 文件；插件使用独立标签 `v2.1.0`。详细发布说明在 [Android 发布记录](../docs/releases/android-v2.1.0.md)。
 
 ## 安装后重点查看
 
-使用现有安装项覆盖升级，查看旧名单及登录是否保留。主要流程包括：检查范围下拉选择与保存、跳转 B站 APP 的稍后再看（含未安装时的提示）、手动检查及取消、缓存排序、周／日及上午／下午切换、备份预览取消与恢复、名单导入导出、深色模式和系统字号变化。所有验证使用自己的设备完成。
+使用现有安装项覆盖升级，查看旧名单及登录是否保留。主要流程包括：检查范围下拉选择与保存、跳转 B站 APP 的稍后再看（含未安装时的提示）、手动检查及取消、缓存排序、周／日及上午／下午切换、备份预览取消与恢复、名单导入导出、深色模式和系统字号变化。液态玻璃主题重点检查设置页开关、切换后当前页面与滚动位置保留、重启保存、浅／深色效果、配置备份恢复，以及手势／三键导航下的底部间距。真机效果由用户在自己的设备上验证。

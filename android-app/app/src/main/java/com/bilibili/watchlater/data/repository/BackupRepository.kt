@@ -35,7 +35,8 @@ class BackupRepository(private val db: AppDatabase, private val settings: Settin
             .put("exportedAt", Instant.now().toString())
             .put("settings", JSONObject().put("checkers", JSONArray())
                 .put("newVideoWindowHours", config.newVideoWindowHours).put("historyWeeks", config.historyWeeks)
-                .put("sortMode", config.sortMode).put("importDone", config.importDone).put("themeMode", config.themeMode))
+                .put("sortMode", config.sortMode).put("importDone", config.importDone).put("themeMode", config.themeMode)
+                .put("liquidGlassEnabled", config.liquidGlassEnabled))
             .put("creators", JSONArray().apply {
                 db.creatorDao().getAllList().forEach { creator ->
                     put(JSONObject().put("mid", creator.mid.toString()).put("name", creator.name).put("face", creator.face)
@@ -74,7 +75,9 @@ class BackupRepository(private val db: AppDatabase, private val settings: Settin
         require(mode in SettingsRepository.SORT_MODES) { "备份的排序方式无效" }
         require(theme in SettingsRepository.THEME_MODES) { "备份的主题设置无效" }
         if (raw.has("importDone")) require(raw.get("importDone") is Boolean) { "备份的导入标记无效" }
-        val config = AppConfiguration(hours, weeks, mode, raw.optBoolean("importDone", false), theme)
+        if (raw.has("liquidGlassEnabled")) require(raw.get("liquidGlassEnabled") is Boolean) { "备份的液态玻璃设置无效" }
+        val config = AppConfiguration(hours, weeks, mode, raw.optBoolean("importDone", false), theme,
+            raw.optBoolean("liquidGlassEnabled", false))
         val array = json.getJSONArray("creators")
         val now = System.currentTimeMillis()
         val cutoff = publicationCutoff(weeks, now)

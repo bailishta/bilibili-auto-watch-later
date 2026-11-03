@@ -1,6 +1,5 @@
 package com.bilibili.watchlater.ui.home
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -8,6 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bilibili.watchlater.ui.theme.AppSurface
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
+import com.bilibili.watchlater.ui.theme.LocalPageInsets
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -15,16 +17,22 @@ import java.util.Locale
 
 @Composable
 fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    AppSurface(modifier.fillMaxWidth(), shape = RoundedCornerShape(if (LocalGlassStyle.current.enabled) 22.dp else 18.dp),
+        shadowElevation = 1.dp) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp), content = content)
     }
 }
 
 @Composable
 fun PanelTitle(text: String) { Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+
+@Composable
+fun pageContentPadding(): PaddingValues {
+    val insets = LocalPageInsets.current
+    val horizontal = if (LocalGlassStyle.current.enabled) 20.dp else 16.dp
+    return PaddingValues(start = horizontal, end = horizontal,
+        top = 16.dp + insets.calculateTopPadding(), bottom = 16.dp + insets.calculateBottomPadding())
+}
 
 fun formatFans(value: Long): String = when {
     value >= 100_000_000 -> String.format(Locale.US, "%.1f", value / 100_000_000.0).removeSuffix(".0") + "亿"

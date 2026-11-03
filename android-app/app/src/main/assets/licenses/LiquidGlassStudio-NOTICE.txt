@@ -1,0 +1,13 @@
+Liquid Glass Studio
+Copyright (c) 2024 Charles Yin
+https://github.com/iyinchao/liquid-glass-studio
+Reference commit: f7b28c36305a862f5cffed3ddd51511cf1204f56
+
+Historical attribution: the former GlassLensEffect.kt adapted the squared bezel incidence profile and Snell-law
+refraction from src/shaders/fragment-main.glsl under the MIT License.
+App-specific changes: analytic rounded-rectangle normals, bounded pixel-space
+sampling, subtle RGB dispersion, Schlick grazing reflection with directional
+lighting and animated touch response. Text-contrast tint is applied separately
+by the app's material roles.
+That renderer was replaced by AndroidLiquidGlass / Backdrop on 2026-11-03.
+This historical attribution and the MIT license are retained for provenance.

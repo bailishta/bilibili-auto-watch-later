@@ -1,5 +1,9 @@
 package com.bilibili.watchlater.ui.home
 
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
+import com.bilibili.watchlater.ui.theme.AppTextButton as TextButton
+import com.bilibili.watchlater.ui.theme.AppFilterChip as FilterChip
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -31,6 +35,7 @@ import com.bilibili.watchlater.data.local.entity.PublicationEntity
 import com.bilibili.watchlater.data.repository.currentWeekStart
 import com.bilibili.watchlater.ui.components.CreatorAvatar
 import com.bilibili.watchlater.ui.theme.Coral
+import com.bilibili.watchlater.ui.theme.AppSurface
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import kotlin.math.cos
@@ -53,7 +58,7 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
     val names = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
     BackHandler(selectedDay != null) { selectedDay = null }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Panel(Modifier.animateContentSize(tween(320, easing = FastOutSlowInEasing))) {
                 PanelTitle("更新分布")
@@ -101,7 +106,7 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
         }
         if (day != null) {
             items(minutes.toList(), key = { it.first }) { (minute, people) ->
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
+                AppSurface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, border = null) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.width(64.dp)) {
                             Text(minuteLabel(minute), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -109,7 +114,7 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
                         }
                         FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             people.forEach { creator ->
-                                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                                AppSurface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant, border = null) {
                                     Row(Modifier.padding(4.dp).semantics { contentDescription = "${creator.name}，UID ${creator.mid}" }, verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                         CreatorAvatar(creator.name, creator.face, Modifier.size(24.dp))
@@ -132,6 +137,7 @@ fun ActivityScreen(creators: List<CreatorUi>, records: List<PublicationEntity>, 
 @Composable
 private fun UpdateClock(minutes: Map<Int, List<CreatorUi>>, period: Int) {
     val colors = MaterialTheme.colorScheme
+    val glass = LocalGlassStyle.current.enabled
     val measurer = rememberTextMeasurer()
     val numbers = remember(measurer, colors.onSurface) { (0..11).map { measurer.measure(if (it == 0) "12" else it.toString(), TextStyle(color = colors.onSurface, fontSize = 22.sp)) } }
     val total = minutes.values.flatten().map { it.mid }.toSet().size
@@ -143,9 +149,11 @@ private fun UpdateClock(minutes: Map<Int, List<CreatorUi>>, period: Int) {
                 val rad = Math.toRadians(angle - 90)
                 return Offset(center.x + r * cos(rad).toFloat(), center.y + r * sin(rad).toFloat())
             }
-            drawCircle(colors.surfaceVariant, radius, center)
-            drawCircle(colors.surface, radius - 5.dp.toPx(), center)
-            drawCircle(colors.outlineVariant, radius, center, style = Stroke(1.dp.toPx()))
+            if (!glass) {
+                drawCircle(colors.surfaceVariant, radius, center)
+                drawCircle(colors.surface, radius - 5.dp.toPx(), center)
+            }
+            if (!glass) drawCircle(colors.outlineVariant, radius, center, style = Stroke(1.dp.toPx()))
             for (tick in 0 until 60) {
                 val major = tick % 5 == 0
                 drawLine(if (major) colors.onSurface else colors.outline, position(radius - if (major) 17.dp.toPx() else 10.dp.toPx(), tick * 6.0),

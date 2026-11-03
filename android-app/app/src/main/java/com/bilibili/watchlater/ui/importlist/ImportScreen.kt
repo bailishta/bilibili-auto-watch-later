@@ -1,5 +1,8 @@
 package com.bilibili.watchlater.ui.importlist
 
+import com.bilibili.watchlater.ui.theme.AppButton as Button
+import com.bilibili.watchlater.ui.theme.AppOutlinedButton as OutlinedButton
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,13 +19,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,7 +38,8 @@ import androidx.compose.ui.res.painterResource
 import com.bilibili.watchlater.R
 import com.bilibili.watchlater.ui.theme.Coral
 import com.bilibili.watchlater.ui.theme.OnCoral
-import com.bilibili.watchlater.ui.theme.BgGray
+import com.bilibili.watchlater.ui.theme.AppBackgroundColor
+import com.bilibili.watchlater.ui.theme.AppSurface
 import com.bilibili.watchlater.ui.theme.BgWhite
 import com.bilibili.watchlater.ui.theme.Pink
 import com.bilibili.watchlater.ui.theme.PinkBg
@@ -60,7 +62,7 @@ fun ImportScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgGray)
+            .background(AppBackgroundColor)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
@@ -91,9 +93,9 @@ fun ImportScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // 功能说明
-        Card(
+        AppSurface(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = BgWhite),
+            color = BgWhite, border = null,
             shape = RoundedCornerShape(18.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -136,9 +138,9 @@ fun ImportScreen(
 
         // 导入中
         if (uiState.isImporting) {
-            Card(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = BgWhite),
+                color = BgWhite, border = null,
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Column(
@@ -161,9 +163,9 @@ fun ImportScreen(
         // 导入结果
         uiState.result?.let { result ->
             val isSuccess = result.status == "ok"
-            Card(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = if (isSuccess) SuccessBg else WarningBg),
+                color = if (isSuccess) SuccessBg else WarningBg, border = null,
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -191,9 +193,9 @@ fun ImportScreen(
 
         // 错误
         uiState.error?.let { error ->
-            Card(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = WarningBg),
+                color = WarningBg, border = null,
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {

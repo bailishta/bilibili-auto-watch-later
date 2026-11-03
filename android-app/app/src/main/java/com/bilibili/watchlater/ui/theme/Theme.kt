@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -39,6 +40,28 @@ private val DarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFFC8C0C3), outline = Color(0xFFB4A9AF), outlineVariant = Color(0xFF413D46),
     surfaceTint = Color(0xFFF29BAB), inverseSurface = Color(0xFFF5F1EF), inverseOnSurface = Color(0xFF34302F), inversePrimary = Color(0xFFC74660)
 )
+private val GlassLightColors = LightColors.copy(
+    primary = Color(0xFF8C3153), onPrimary = Color.White,
+    primaryContainer = Color(0xFFF8DCE9), onPrimaryContainer = Color(0xFF70213F),
+    secondary = Color(0xFF285F80), secondaryContainer = Color(0xFFD5EAF8), onSecondaryContainer = Color(0xFF173D56),
+    background = Color(0xFFECEEF4), surface = Color.White, surfaceContainer = Color(0xFFF8F9FC),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color.White,
+    surfaceContainerHigh = Color(0xFFFEFEFF), surfaceContainerHighest = Color(0xFFE6E9F0),
+    surfaceVariant = Color(0xFFECECF1), onSurface = Color(0xFF1C1C1E), onBackground = Color(0xFF1C1C1E),
+    onSurfaceVariant = Color(0xFF57575F), outline = Color(0xFF6C6C75), outlineVariant = Color(0xFFE4E4EA),
+    surfaceTint = Color(0xFFAA375D)
+)
+private val GlassDarkColors = DarkColors.copy(
+    primary = Color(0xFFFFAFD0), onPrimary = Color(0xFF481D32),
+    primaryContainer = Color(0xFF54334F), onPrimaryContainer = Color(0xFFFFD5E7),
+    secondary = Color(0xFFA9D8F5), secondaryContainer = Color(0xFF29445E), onSecondaryContainer = Color(0xFFD2EDFF),
+    background = Color(0xFF101115), surface = Color(0xFF25272D), surfaceContainer = Color(0xFF25272D),
+    surfaceContainerLowest = Color(0xFF101115), surfaceContainerLow = Color(0xFF30333B),
+    surfaceContainerHigh = Color(0xFF2D3038), surfaceContainerHighest = Color(0xFF3A3D46),
+    surfaceVariant = Color(0xFF303035), onSurface = Color(0xFFF5F5F7), onBackground = Color(0xFFF5F5F7),
+    onSurfaceVariant = Color(0xFFCBCBD2), outline = Color(0xFFAAAAB4), outlineVariant = Color(0xFF39393F),
+    surfaceTint = Color(0xFFFFAFD0)
+)
 private val AppShapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(20.dp), extraLarge = RoundedCornerShape(28.dp))
 private val AppTypography = Typography().let { base -> base.copy(
@@ -52,7 +75,7 @@ private val AppTypography = Typography().let { base -> base.copy(
 ) }
 
 @Composable
-fun BiliWatchLaterTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun BiliWatchLaterTheme(darkTheme: Boolean = isSystemInDarkTheme(), liquidGlass: Boolean = false, content: @Composable () -> Unit) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -65,7 +88,16 @@ fun BiliWatchLaterTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Co
             }
         }
     }
-    CompositionLocalProvider(LocalDeviceScale provides rememberDeviceScale()) {
-        MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors, typography = AppTypography, shapes = AppShapes, content = content)
+    val colors = when {
+        liquidGlass && darkTheme -> GlassDarkColors
+        liquidGlass -> GlassLightColors
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
+    CompositionLocalProvider(LocalDeviceScale provides rememberDeviceScale(), LocalGlassStyle provides GlassStyle(liquidGlass, darkTheme),
+        LocalContentColor provides colors.onBackground) {
+        MaterialTheme(colorScheme = colors, typography = AppTypography, shapes = AppShapes) {
+            AppBackdrop(content)
+        }
     }
 }

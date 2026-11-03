@@ -1,5 +1,10 @@
 package com.bilibili.watchlater.ui.log
 
+import com.bilibili.watchlater.ui.theme.AppSurface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.bilibili.watchlater.ui.theme.AppIconButton as IconButton
+import com.bilibili.watchlater.ui.theme.AppFilterChip as FilterChip
+
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -20,10 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -39,7 +42,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bilibili.watchlater.ui.theme.BgGray
+import com.bilibili.watchlater.ui.theme.AppBackgroundColor
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
 import com.bilibili.watchlater.ui.theme.BgWhite
 import com.bilibili.watchlater.ui.theme.Pink
 import com.bilibili.watchlater.ui.theme.TextHint
@@ -53,9 +57,11 @@ fun LogScreen(onBack: () -> Unit) {
     val context = LocalContext.current
 
     Scaffold(
+        containerColor = AppBackgroundColor,
         topBar = {
             TopAppBar(
                 title = { Text("运行日志") },
+
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -84,7 +90,6 @@ fun LogScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(BgGray)
         ) {
             // 过滤器
             Row(
@@ -141,9 +146,11 @@ fun LogScreen(onBack: () -> Unit) {
             }
 
             val listState = rememberLazyListState()
-            LazyColumn(state = listState) {
-                items(logs) { entry ->
-                    LogItem(entry)
+            AppSurface(Modifier.fillMaxWidth().weight(1f).padding(if (LocalGlassStyle.current.enabled) 12.dp else 0.dp),
+                shape = RoundedCornerShape(if (LocalGlassStyle.current.enabled) 18.dp else 0.dp),
+                color = Color.Transparent, border = null) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    items(logs) { entry -> LogItem(entry) }
                 }
             }
         }

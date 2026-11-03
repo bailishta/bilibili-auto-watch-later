@@ -1,5 +1,9 @@
 package com.bilibili.watchlater.ui.home
 
+import com.bilibili.watchlater.ui.theme.AppButton as Button
+import com.bilibili.watchlater.ui.theme.AppOutlinedButton as OutlinedButton
+import com.bilibili.watchlater.ui.theme.AppTextButton as TextButton
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,12 +19,16 @@ import com.bilibili.watchlater.ui.theme.ActionCoral
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.ui.graphics.Color
 import com.bilibili.watchlater.ui.theme.OnCoral
+import com.bilibili.watchlater.ui.theme.AppSurface
+import com.bilibili.watchlater.ui.theme.LocalGlassStyle
 
 @Composable
 fun DashboardScreen(state: HomeUiState, onCheck: () -> Unit, onOpenWatchLater: () -> Unit, onSettings: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    val glass = LocalGlassStyle.current.enabled
+    val actionColor = if (glass) MaterialTheme.colorScheme.primary else ActionCoral
+    val actionContent = if (glass) MaterialTheme.colorScheme.onPrimary else OnCoral
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = pageContentPadding(), verticalArrangement = Arrangement.spacedBy(if (glass) 18.dp else 14.dp)) {
         item {
             Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("把想看的留好", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
@@ -33,10 +41,12 @@ fun DashboardScreen(state: HomeUiState, onCheck: () -> Unit, onOpenWatchLater: (
                     StatTile("追踪 UP 主", state.trackingCount, Modifier.weight(1f))
                     StatTile("本次新发现", state.lastNewCount, Modifier.weight(1f))
                 }
-                Button(onClick = onCheck, enabled = !state.isChecking && state.busyLabel == null, modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
-                    shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = ActionCoral, contentColor = OnCoral,
-                        disabledContainerColor = if (state.isChecking) ActionCoral else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        disabledContentColor = if (state.isChecking) OnCoral else MaterialTheme.colorScheme.onSurfaceVariant)) {
+                Button(onClick = onCheck, enabled = !state.isChecking && state.busyLabel == null,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
+                    shape = RoundedCornerShape(if (glass) 18.dp else 14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = actionColor, contentColor = actionContent,
+                        disabledContainerColor = if (state.isChecking) actionColor else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        disabledContentColor = if (state.isChecking) actionContent else MaterialTheme.colorScheme.onSurfaceVariant)) {
                     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (!state.isChecking) Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
@@ -45,7 +55,7 @@ fun DashboardScreen(state: HomeUiState, onCheck: () -> Unit, onOpenWatchLater: (
                                 fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         }
                         if (state.isChecking) LinearProgressIndicator(progress = { state.progress.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(6.dp),
-                            color = Color.White, trackColor = Color.White.copy(alpha = .25f), gapSize = 0.dp, drawStopIndicator = {})
+                            color = actionContent, trackColor = actionContent.copy(alpha = .25f), gapSize = 0.dp, drawStopIndicator = {})
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -85,7 +95,7 @@ fun DashboardScreen(state: HomeUiState, onCheck: () -> Unit, onOpenWatchLater: (
 
 @Composable
 private fun StatTile(label: String, value: Int, modifier: Modifier) {
-    Surface(modifier, shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+    AppSurface(modifier, shape = RoundedCornerShape(if (LocalGlassStyle.current.enabled) 18.dp else 14.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(vertical = 16.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -46,7 +46,11 @@ class SettingsRepository(context: Context) {
         get() = prefs.getString("theme_mode", "system").takeIf { it in THEME_MODES } ?: "system"
         set(value) { require(value in THEME_MODES); prefs.edit().putString("theme_mode", value).apply() }
 
-    fun configuration() = AppConfiguration(newVideoWindowHours, historyWeeks, sortMode, importDone, themeMode)
+    var liquidGlassEnabled: Boolean
+        get() = prefs.getBoolean("liquid_glass_enabled", false)
+        set(value) = prefs.edit().putBoolean("liquid_glass_enabled", value).apply()
+
+    fun configuration() = AppConfiguration(newVideoWindowHours, historyWeeks, sortMode, importDone, themeMode, liquidGlassEnabled)
 
     @Synchronized
     fun finishCheck(sessionId: String, added: Int) {
@@ -74,7 +78,8 @@ class SettingsRepository(context: Context) {
         require(value.sortMode in SORT_MODES && value.themeMode in THEME_MODES)
         check(prefs.edit().putInt("new_video_window_hours", value.newVideoWindowHours)
             .putInt("history_weeks", value.historyWeeks).putString("sort_mode", value.sortMode)
-            .putBoolean("import_done", value.importDone).putString("theme_mode", value.themeMode).commit()) {
+            .putBoolean("import_done", value.importDone).putString("theme_mode", value.themeMode)
+            .putBoolean("liquid_glass_enabled", value.liquidGlassEnabled).commit()) {
             "保存配置失败，请检查设备存储空间"
         }
     }
@@ -91,5 +96,6 @@ data class AppConfiguration(
     val historyWeeks: Int = 3,
     val sortMode: String = "default",
     val importDone: Boolean = false,
-    val themeMode: String = "system"
+    val themeMode: String = "system",
+    val liquidGlassEnabled: Boolean = false
 )

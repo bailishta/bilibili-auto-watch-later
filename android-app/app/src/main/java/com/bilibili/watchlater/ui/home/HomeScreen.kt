@@ -1,5 +1,9 @@
 package com.bilibili.watchlater.ui.home
 
+import com.bilibili.watchlater.ui.theme.AppSnackbar
+import com.bilibili.watchlater.ui.theme.AppTextButton as TextButton
+import com.bilibili.watchlater.ui.theme.AppAlertDialog as AlertDialog
+
 import android.content.Intent
 import android.Manifest
 import android.content.pm.PackageManager
@@ -29,12 +33,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bilibili.watchlater.ui.components.AddCreatorDialog
 import com.bilibili.watchlater.R
 import com.bilibili.watchlater.ui.theme.Success
 import com.bilibili.watchlater.ui.theme.SuccessBg
+import com.bilibili.watchlater.ui.theme.AppBackgroundColor
+import com.bilibili.watchlater.ui.theme.AppSurface
+import com.bilibili.watchlater.ui.theme.captureGlassBackdrop
+import com.bilibili.watchlater.ui.theme.LocalPageInsets
 import com.bilibili.watchlater.util.BiliAppLauncher
 import java.time.LocalDate
 
@@ -80,26 +89,35 @@ fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> 
     }
     BackHandler(page != 0) { page = 0 }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background,
+    Scaffold(containerColor = AppBackgroundColor,
         topBar = {
             TopAppBar(title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Image(painterResource(R.drawable.app_brand_mark), contentDescription = null, modifier = Modifier.size(36.dp))
                     Column {
-                        Text(if (page == 0) "稍后观看助手" else tabs[page], style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        if (page == 0) Text("按自己的节奏看", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (page == 0) "稍后观看助手" else tabs[page], style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (page == 0) Text("按自己的节奏看", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             },
+
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 actions = {
-                    Surface(color = SuccessBg, shape = RoundedCornerShape(20.dp), modifier = Modifier.padding(end = 16.dp)) {
+                    AppSurface(color = SuccessBg, border = null, shape = RoundedCornerShape(20.dp), modifier = Modifier.padding(end = 12.dp, start = 4.dp)) {
                         Text("已登录", color = Success, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                     }
                 })
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            if (state.liquidGlassEnabled) {
+                GlassNavigationBar(page, tabs, icons, { page = it }, Modifier.navigationBarsPadding()
+                    .padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 12.dp))
+            } else {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp) {
                 tabs.forEachIndexed { index, label ->
                     NavigationBarItem(selected = page == index, onClick = { page = index }, label = { Text(label) },
                         icon = { Icon(icons[index], contentDescription = null) },
@@ -107,12 +125,18 @@ fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> 
                             selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer))
                 }
             }
-        }, snackbarHost = { SnackbarHost(snackbar) }
+            }
+        }, snackbarHost = { SnackbarHost(snackbar) { AppSnackbar(it) } }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        val contentInsets = if (state.liquidGlassEnabled) PaddingValues(
+            top = if (state.isBusy) 0.dp else padding.calculateTopPadding(), bottom = padding.calculateBottomPadding()
+        ) else PaddingValues(0.dp)
+        CompositionLocalProvider(LocalPageInsets provides contentInsets) {
+        Column(Modifier.fillMaxSize().then(if (state.liquidGlassEnabled) Modifier.captureGlassBackdrop() else Modifier.padding(padding))) {
             if (state.isBusy) {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                AppSurface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(14.dp), border = null,
+                    modifier = Modifier.padding(top = if (state.liquidGlassEnabled) padding.calculateTopPadding() else 0.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (state.isChecking || state.isCheckPaused) (if (state.isCancelling) "正在取消…" else state.progressText) else state.busyLabel.orEmpty(),
@@ -140,6 +164,7 @@ fun HomeScreen(viewModel: HomeViewModel, onLogout: () -> Unit, onOpenLog: () -> 
                     }
                 }
             }
+        }
         }
     }
     if (state.addDialogVisible) AddCreatorDialog(error = state.addError, onConfirm = viewModel::addCreator, onDismiss = viewModel::hideAddDialog, busy = state.isBusy)
