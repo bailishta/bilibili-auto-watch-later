@@ -24,3 +24,11 @@ Android 仅提供手动发起检查，不提供周期自动检查。系统择机
 - 观看历史数据库迁移与旧数据保留测试通过。
 - 液态玻璃已有 Android 14 模拟器验证记录，详见仓库实现说明；本次发布未额外执行真机完整业务回归或 Android 8–12 设备验证。
 - 附件提供 SHA-256 校验文件，APK 包含相关第三方许可。
+
+### 界面截图
+
+| 首页（默认导航） | 液态玻璃底部导航 | 悬浮窗遮挡时的折射 |
+| --- | --- | --- |
+| <img src="https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.1.0/android-home.jpg" alt="Android 客户端首页" width="220"> | <img src="https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.1.0/android-liquid-glass-home.jpg" alt="液态玻璃底部导航" width="220"> | <img src="https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.1.0/android-liquid-glass-overlay.jpg" alt="悬浮窗遮挡时的折射" width="220"> |
+
+液态玻璃底部导航在「设置 → 外观主题」开启，默认关闭；截图为真机界面。

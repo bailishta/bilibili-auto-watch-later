@@ -40,7 +40,11 @@
 
 Android 版是 Jetpack Compose 原生手机界面，首页显示追踪数量与累计添加，手动检查后可一键跳到 B站 APP 的「稍后再看」，底部另有名单、更新分布和设置三个页面。
 
-<img src="docs/demo/android-home.jpg" alt="Android 客户端首页：已登录、追踪 UP 主 525 位、立即检查与累计添加" width="300">
+| 首页（默认导航） | 液态玻璃底部导航（2.1.0） | 悬浮窗遮挡时的折射 |
+| :---: | :---: | :---: |
+| <img src="docs/demo/android-home.jpg" alt="Android 客户端首页：已登录、追踪 UP 主 525 位、立即检查与累计添加" width="220"> | <img src="docs/demo/android-liquid-glass-home.jpg" alt="Android 首页的液态玻璃底部导航：折射、高光与选中回弹" width="220"> | <img src="docs/demo/android-liquid-glass-overlay.jpg" alt="悬浮窗经过底部液态玻璃导航时的背景折射" width="220"> |
+
+「设置 → 外观主题」可开启液态玻璃底部导航（默认关闭）：支持背景折射、按压放大、拖动形变、色散、高光和回弹，卡片、表单及弹窗保持普通材质；Android 13+ 使用完整折射，Android 12 使用背景模糊，Android 8–11 使用兼容材质。
 
 以上 Chrome 扩展的截图与录屏取自扩展的真实页面，数据为示例数据，不含任何真实的账号或 B站 数据；Android 截图为手机上真实运行的界面。
 
