@@ -6,6 +6,38 @@
 
 **Android 当前版本：2.1.0** · [下载 APK](https://github.com/bailishta/bilibili-auto-watch-later/releases/download/android-v2.1.0/bilibili-watch-later-android-v2.1.0.apk) · [安卓说明](android-app/README.md) · [安卓 Release](https://github.com/bailishta/bilibili-auto-watch-later/releases/tag/android-v2.1.0)
 
+## 演示
+
+一次检查把追踪的 UP主新视频放进「稍后观看」，再用管理中心看名单、排期和更新分布。
+
+| 弹窗：状态与一键检查 | 管理中心：名单、检查器、更新分布 |
+| :---: | :---: |
+| <img src="docs/demo/popup-light.png" alt="弹窗：登录状态、追踪数量与立即检查" width="260"> | <img src="docs/demo/manage-light.png" alt="管理中心：追踪名单、自动检查器与更新分布" width="540"> |
+
+**更新分布**按自然周统计每天更新的 UP 主人数，点开某一天进入 12 小时表盘，直接列出精确到分钟的时间与 UP 主。
+
+| 整周分布 | 某一天的 12 小时表盘 |
+| :---: | :---: |
+| <img src="docs/demo/activity-week.png" alt="更新分布：按自然周的柱状图" width="300"> | <img src="docs/demo/activity-clock.png" alt="更新分布：某一天的 12 小时表盘" width="300"> |
+
+| 深色模式（弹窗） | 深色模式（管理中心） |
+| :---: | :---: |
+| <img src="docs/demo/popup-dark.png" alt="深色模式下的弹窗" width="200"> | <img src="docs/demo/manage-dark.png" alt="深色模式下的管理中心" width="540"> |
+
+首次安装会打开引导页，可一键导入 B站关注列表：
+
+<img src="docs/demo/onboarding.png" alt="首次安装引导页：一键导入 B站关注列表" width="320">
+
+### 动态演示
+
+约 30 秒：打开弹窗 → 立即检查 → 进入管理中心 → 按粉丝数排序 → 点开某天看表盘 → 导入导出与配置备份。
+
+![稍后观看助手演示动图](docs/demo/demo.gif)
+
+[▶ 观看高清演示视频（MP4，1280×1000）](docs/demo/demo.mp4)
+
+以上截图与录屏都取自扩展的真实页面，数据为示例数据，不含任何真实的账号或 B站 数据。
+
 ## 功能
 
 - **自动检查新视频** — 定时扫描追踪名单中 UP主的最新视频，自动添加到稍后观看
@@ -86,7 +118,7 @@ Android 2.1.0 使用 Jetpack Compose 原生手机界面，支持手动检查、�
 ├── icons/                 # 扩展图标
 ├── ui/                    # 共享配色、字体与深色模式
 ├── tests/                 # 缓存与排程测试、浏览器和真实扩展测试
-├── docs/                  # 开发说明与发布说明
+├── docs/                  # 开发与发布说明、演示素材（docs/demo）
 ├── CHANGELOG.md           # 插件及 Android 更新日志
 └── android-app/           # Android 客户端（Jetpack Compose）
 ```
