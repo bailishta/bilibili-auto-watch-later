@@ -135,6 +135,19 @@ Android 2.1.0 使用 Jetpack Compose 原生手机界面，支持手动检查、�
 
 浏览器插件使用原生 JavaScript + Manifest V3，无构建步骤；Android 客户端使用 Kotlin、Jetpack Compose 和 Room，通过 Gradle 编译。
 
+## 第三方组件与致谢
+
+Android 客户端的液态玻璃底部导航基于 GitHub 开源项目实现，渲染源码随 APK 一起编译（不依赖已发布的 AAR），许可与 NOTICE 打包在 `android-app/app/src/main/assets/licenses/`：
+
+| 项目 | 用途 | 许可 |
+| --- | --- | --- |
+| [Kyant0/AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass/tree/1.0.6) | 当前实现：Backdrop 渲染源码，以及适配后的 LiquidBottomTabs、DampedDragAnimation、DragGestureInspector、InteractiveHighlight（固定参考 v1.0.6 / `896a94a3`） | Apache-2.0 |
+| [iyinchao/liquid-glass-studio](https://github.com/iyinchao/liquid-glass-studio) | 早期玻璃折射实现（固定参考 `f7b28c36`）；2026-11-03 起由 AndroidLiquidGlass 取代，署名与 MIT 许可继续保留 | MIT |
+
+- 为兼容既有的 Kotlin 2.0 / Compose 1.7 构建与应用主题做了改动：Compose 圆角形状、当前选中回调、可访问性语义、大字号导航、低版本不透明底色等，完整清单见 [android-app/third-party/Backdrop.md](android-app/third-party/Backdrop.md)。
+- 实现说明、材质取值与验证记录见 [android-app/design/liquid-glass.md](android-app/design/liquid-glass.md)。
+- Chrome 扩展为原生 JavaScript，无第三方运行时依赖。
+
 ## 许可
 
 MIT License
